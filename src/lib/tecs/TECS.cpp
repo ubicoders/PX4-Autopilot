@@ -239,7 +239,7 @@ void TECSControl::initialize(const Setpoint &setpoint, const Input &input, Param
 
 	_detectUnderspeed(input, param, flag);
 
-	const SpecificEnergyWeighting weight{_updateSpeedAltitudeWeights(param, flag)};
+	const SpecificEnergyWeighting weight{_updateSpeedAltitudeWeights(input, param, flag)};
 	ControlValues seb_rate{_calcPitchControlSebRate(weight, specific_energy_rate)};
 
 	_pitch_setpoint = _calcPitchControlOutput(input, seb_rate, param, flag);
@@ -381,7 +381,8 @@ void TECSControl::_detectUnderspeed(const Input &input, const Param &param, cons
 			   math::max(tas_starting_to_underspeed - tas_fully_undersped, FLT_EPSILON), 0.0f, 1.0f);
 }
 
-TECSControl::SpecificEnergyWeighting TECSControl::_updateSpeedAltitudeWeights(const Param &param, const Flag &flag)
+TECSControl::SpecificEnergyWeighting TECSControl::_updateSpeedAltitudeWeights(const Input &input, const Param &param,
+		const Flag &flag)
 {
 
 	SpecificEnergyWeighting weight;
@@ -394,6 +395,10 @@ TECSControl::SpecificEnergyWeighting TECSControl::_updateSpeedAltitudeWeights(co
 	} else if (!flag.airspeed_enabled) {
 		pitch_speed_weight = 0.0f;
 
+	} else if (flag.fast_descend) {
+		// pitch loop controls the airspeed to max
+		pitch_speed_weight = 2.0;
+
 	}
 
 	// don't allow any weight to be larger than one, as it has the same effect as reducing the control
@@ -405,10 +410,9 @@ TECSControl::SpecificEnergyWeighting TECSControl::_updateSpeedAltitudeWeights(co
 }
 
 void TECSControl::_calcPitchControl(float dt, const Input &input, const SpecificEnergyRates &specific_energy_rates,
-				    const Param &param,
-				    const Flag &flag)
+				    const Param &param, const Flag &flag)
 {
-	const SpecificEnergyWeighting weight{_updateSpeedAltitudeWeights(param, flag)};
+	const SpecificEnergyWeighting weight{_updateSpeedAltitudeWeights(input, param, flag)};
 	ControlValues seb_rate{_calcPitchControlSebRate(weight, specific_energy_rates)};
 
 	_calcPitchControlUpdate(dt, input, seb_rate, param);
@@ -514,19 +518,24 @@ void TECSControl::_calcThrottleControl(float dt, const SpecificEnergyRates &spec
 	const float STE_rate_estimate_raw = specific_energy_rates.spe_rate.estimate + specific_energy_rates.ske_rate.estimate;
 	_ste_rate_estimate_filter.setParameters(dt, param.ste_rate_time_const);
 	_ste_rate_estimate_filter.update(STE_rate_estimate_raw);
-
 	ControlValues ste_rate{_calcThrottleControlSteRate(limit, specific_energy_rates, param)};
-	_calcThrottleControlUpdate(dt, limit, ste_rate, param, flag);
-	float throttle_setpoint{_calcThrottleControlOutput(limit, ste_rate, param, flag)};
 
-	// Rate limit the throttle demand
-	if (fabsf(param.throttle_slewrate) > FLT_EPSILON) {
-		const float throttle_increment_limit = dt * (param.throttle_max - param.throttle_min) * param.throttle_slewrate;
-		throttle_setpoint = constrain(throttle_setpoint, _throttle_setpoint - throttle_increment_limit,
-					      _throttle_setpoint + throttle_increment_limit);
+	if (flag.fast_descend) {
+		_throttle_setpoint = param.throttle_min;
+
+	} else {
+		_calcThrottleControlUpdate(dt, limit, ste_rate, param, flag);
+		float throttle_setpoint{_calcThrottleControlOutput(limit, ste_rate, param, flag)};
+
+		// Rate limit the throttle demand
+		if (fabsf(param.throttle_slewrate) > FLT_EPSILON) {
+			const float throttle_increment_limit = dt * (param.throttle_max - param.throttle_min) * param.throttle_slewrate;
+			throttle_setpoint = constrain(throttle_setpoint, _throttle_setpoint - throttle_increment_limit,
+						      _throttle_setpoint + throttle_increment_limit);
+		}
+
+		_throttle_setpoint = constrain(throttle_setpoint, param.throttle_min, param.throttle_max);
 	}
-
-	_throttle_setpoint = constrain(throttle_setpoint, param.throttle_min, param.throttle_max);
 
 	// Debug output
 	_debug_output.total_energy_rate_estimate = ste_rate.estimate;
@@ -651,6 +660,7 @@ void TECS::initControlParams(float target_climbrate, float target_sinkrate, floa
 	_reference_param.target_sinkrate = target_sinkrate;
 	// Control
 	_control_param.tas_min = eas_to_tas * _equivalent_airspeed_min;
+	_control_param.tas_max = eas_to_tas * _equivalent_airspeed_max;
 	_control_param.pitch_max = pitch_limit_max;
 	_control_param.pitch_min = pitch_limit_min;
 	_control_param.throttle_trim = throttle_trim;
@@ -705,6 +715,10 @@ void TECS::update(float pitch, float altitude, float hgt_setpoint, float EAS_set
 		initialize(altitude, hgt_rate, equivalent_airspeed, eas_to_tas);
 
 	} else {
+		/* Check if we want to fast descend. On fast descend, we set the throttle to min, and use the altitude control
+		loop to control the speed to the maximum airspeed. */
+		const bool is_fast_descend{_checkFastDescend(hgt_setpoint, altitude)};
+
 		// Update airspeedfilter submodule
 		const TECSAirspeedFilter::Input airspeed_input{ .equivalent_airspeed = equivalent_airspeed,
 				.equivalent_airspeed_rate = speed_deriv_forward / eas_to_tas};
@@ -712,10 +726,19 @@ void TECS::update(float pitch, float altitude, float hgt_setpoint, float EAS_set
 		_airspeed_filter.update(dt, airspeed_input, _airspeed_filter_param, _control_flag.airspeed_enabled);
 
 		// Update Reference model submodule
-		const TECSAltitudeReferenceModel::AltitudeReferenceState setpoint{ .alt = hgt_setpoint,
-				.alt_rate = hgt_rate_sp};
+		if (is_fast_descend) {
+			// Reset the altitude reference model.
+			const TECSAltitudeReferenceModel::AltitudeReferenceState init_state{
+				.alt = altitude,
+				.alt_rate = hgt_rate};
+			_altitude_reference_model.initialize(init_state);
 
-		_altitude_reference_model.update(dt, setpoint, altitude, hgt_rate, _reference_param);
+		} else {
+			const TECSAltitudeReferenceModel::AltitudeReferenceState setpoint{ .alt = hgt_setpoint,
+					.alt_rate = hgt_rate_sp};
+
+			_altitude_reference_model.update(dt, setpoint, altitude, hgt_rate, _reference_param);
+		}
 
 		TECSControl::Setpoint control_setpoint;
 		control_setpoint.altitude_reference = _altitude_reference_model.getAltitudeReference();
@@ -726,6 +749,12 @@ void TECS::update(float pitch, float altitude, float hgt_setpoint, float EAS_set
 							.altitude_rate = hgt_rate,
 							.tas = eas_to_tas * _airspeed_filter.getState().speed,
 							.tas_rate = eas_to_tas * _airspeed_filter.getState().speed_rate};
+
+		if (is_fast_descend) {
+			control_setpoint.tas_setpoint = _control_param.tas_max;
+		}
+
+		_control_flag.fast_descend = is_fast_descend;
 
 		_control.update(dt, control_setpoint, control_input, _control_param, _control_flag);
 	}
@@ -740,3 +769,13 @@ void TECS::update(float pitch, float altitude, float hgt_setpoint, float EAS_set
 	_update_timestamp = now;
 }
 
+bool TECS::_checkFastDescend(const float alt_setpoint, const float alt)
+{
+	bool ret_val{false};
+
+	if ((_fast_descend_alt_err > FLT_EPSILON) && ((alt_setpoint + _fast_descend_alt_err) < alt)) {
+		ret_val = true;
+	}
+
+	return ret_val;
+}
