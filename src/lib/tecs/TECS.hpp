@@ -729,6 +729,7 @@ private:
 	TECSControl::Flag _control_flag{
 		.airspeed_enabled = false,
 		.detect_underspeed_enabled = false,
+		.fast_descend = false
 	};
 
 	/**

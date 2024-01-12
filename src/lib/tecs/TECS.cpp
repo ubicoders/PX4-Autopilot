@@ -773,7 +773,8 @@ bool TECS::_checkFastDescend(const float alt_setpoint, const float alt)
 {
 	bool ret_val{false};
 
-	if ((_fast_descend_alt_err > FLT_EPSILON) && ((alt_setpoint + _fast_descend_alt_err) < alt)) {
+	if (_control_flag.airspeed_enabled && (_fast_descend_alt_err > FLT_EPSILON)
+	    && ((alt_setpoint + _fast_descend_alt_err) < alt)) {
 		ret_val = true;
 	}
 
