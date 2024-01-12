@@ -430,12 +430,11 @@ private:
 	/**
 	 * @brief Update specific energy balance weights.
 	 *
-	 * @param input is the current input measurement of the UAS.
 	 * @param param is the control parameters.
 	 * @param flag is the control flags.
 	 * @return Weights used for the specific energy balance.
 	 */
-	SpecificEnergyWeighting _updateSpeedAltitudeWeights(const Input &input, const Param &param, const Flag &flag);
+	SpecificEnergyWeighting _updateSpeedAltitudeWeights(const Param &param, const Flag &flag);
 	/**
 	 * @brief Calculate pitch control.
 	 *

@@ -239,7 +239,7 @@ void TECSControl::initialize(const Setpoint &setpoint, const Input &input, Param
 
 	_detectUnderspeed(input, param, flag);
 
-	const SpecificEnergyWeighting weight{_updateSpeedAltitudeWeights(input, param, flag)};
+	const SpecificEnergyWeighting weight{_updateSpeedAltitudeWeights(param, flag)};
 	ControlValues seb_rate{_calcPitchControlSebRate(weight, specific_energy_rate)};
 
 	_pitch_setpoint = _calcPitchControlOutput(input, seb_rate, param, flag);
@@ -381,8 +381,7 @@ void TECSControl::_detectUnderspeed(const Input &input, const Param &param, cons
 			   math::max(tas_starting_to_underspeed - tas_fully_undersped, FLT_EPSILON), 0.0f, 1.0f);
 }
 
-TECSControl::SpecificEnergyWeighting TECSControl::_updateSpeedAltitudeWeights(const Input &input, const Param &param,
-		const Flag &flag)
+TECSControl::SpecificEnergyWeighting TECSControl::_updateSpeedAltitudeWeights(const Param &param, const Flag &flag)
 {
 
 	SpecificEnergyWeighting weight;
@@ -412,7 +411,7 @@ TECSControl::SpecificEnergyWeighting TECSControl::_updateSpeedAltitudeWeights(co
 void TECSControl::_calcPitchControl(float dt, const Input &input, const SpecificEnergyRates &specific_energy_rates,
 				    const Param &param, const Flag &flag)
 {
-	const SpecificEnergyWeighting weight{_updateSpeedAltitudeWeights(input, param, flag)};
+	const SpecificEnergyWeighting weight{_updateSpeedAltitudeWeights(param, flag)};
 	ControlValues seb_rate{_calcPitchControlSebRate(weight, specific_energy_rates)};
 
 	_calcPitchControlUpdate(dt, input, seb_rate, param);
@@ -521,6 +520,7 @@ void TECSControl::_calcThrottleControl(float dt, const SpecificEnergyRates &spec
 	ControlValues ste_rate{_calcThrottleControlSteRate(limit, specific_energy_rates, param)};
 
 	if (flag.fast_descend) {
+		// During fast descend, we control airspeed over the pitch control loop and give minimal thrust.
 		_throttle_setpoint = param.throttle_min;
 
 	} else {
