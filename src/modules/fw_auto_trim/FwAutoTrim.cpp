@@ -141,7 +141,6 @@ void FwAutoTrim::Run()
 
 	const hrt_abstime now = hrt_absolute_time();
 	const Vector3f torque{vehicle_torque_setpoint.xyz};
-	state state_prev = _state;
 
 	const bool run_auto_trim = _fixed_wing
 				   && _armed
@@ -212,9 +211,7 @@ void FwAutoTrim::Run()
 		_state = state::fail;
 	}
 
-	if (_state != state_prev) {
-		publishStatus(vehicle_torque_setpoint.timestamp_sample);
-	}
+	publishStatus(vehicle_torque_setpoint.timestamp_sample);
 
 	perf_end(_cycle_perf);
 }
