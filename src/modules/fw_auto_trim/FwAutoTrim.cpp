@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2020-2022 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2024 PX4 Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -123,7 +123,7 @@ void FwAutoTrim::Run()
 		airspeed_validated_s airspeed_validated;
 
 		if (_airspeed_validated_sub.copy(&airspeed_validated)) {
-			_airspeed = airspeed_validated.true_airspeed_m_s;
+			_calibrated_airspeed_m_s = airspeed_validated.calibrated_airspeed_m_s;
 		}
 	}
 
@@ -146,10 +146,10 @@ void FwAutoTrim::Run()
 	const bool run_auto_trim = _fixed_wing
 				   && _armed
 				   && !_landed
-				   && (dt > 0.001f) && (dt < 1.f)
+				   && (dt > 0.001f) && (dt < 0.1f)
 				   && torque.isAllFinite()
-				   && _airspeed >= _param_fw_airspd_min.get()
-				   && _airspeed <= _param_fw_airspd_max.get()
+				   && _calibrated_airspeed_m_s >= _param_fw_airspd_min.get()
+				   && _calibrated_airspeed_m_s <= _param_fw_airspd_max.get()
 				   && _cos_tilt > cosf(math::radians(_kTiltMaxDeg));
 
 	if (run_auto_trim) {
@@ -188,7 +188,7 @@ void FwAutoTrim::Run()
 				// Perform a statistical test between the estimated and test data
 				const float gate = 5.f;
 				const Vector3f innovation = _trim_test.mean() - _trim_estimate.mean();
-				const Vector3f innovation_variance = _trim_test.variance() + _trim_test.variance();
+				const Vector3f innovation_variance = _trim_test.variance() + _trim_estimate.variance();
 				const float test_ratio = Vector3f(innovation.edivide(innovation_variance * gate * gate)) * innovation;
 
 				if ((test_ratio <= 1.f) && !innovation.longerThan(0.05f)) {

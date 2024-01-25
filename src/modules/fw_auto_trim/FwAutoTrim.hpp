@@ -111,7 +111,7 @@ private:
 	bool _landed{false};
 	bool _fixed_wing{false};
 	bool _tailsitter{false};
-	float _airspeed{0.f};
+	float _calibrated_airspeed_m_s{0.f};
 	float _cos_tilt{0.f};
 
 	math::WelfordMeanVector<float, 3> _trim_estimate{};
