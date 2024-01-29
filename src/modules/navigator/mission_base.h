@@ -455,10 +455,10 @@ private:
 	mission_item_s _last_camera_trigger_item {};
 	mission_item_s _last_speed_change_item {};
 
-	DEFINE_PARAMETERS(
-		(ParamFloat<px4::params::MIS_DIST_1WP>) _param_mis_dist_1wp,
-		(ParamInt<px4::params::MIS_MNT_YAW_CTL>) _param_mis_mnt_yaw_ctl
-	)
+	DEFINE_PARAMETERS_CUSTOM_PARENT(ModuleParams,
+					(ParamFloat<px4::params::MIS_DIST_1WP>) _param_mis_dist_1wp,
+					(ParamInt<px4::params::MIS_MNT_YAW_CTL>) _param_mis_mnt_yaw_ctl
+				       )
 
 	uORB::SubscriptionInterval _parameter_update_sub{ORB_ID(parameter_update), 1_s};
 };

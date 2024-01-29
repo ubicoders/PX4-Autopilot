@@ -62,13 +62,7 @@ void RtlDirectMissionLand::on_activation()
 	if (hasMissionLandStart()) {
 		_is_current_planned_mission_item_valid = (goToItem(_mission.land_start_index, false) == PX4_OK);
 
-		if ((_global_pos_sub.get().alt < _rtl_alt) || _enforce_rtl_alt) {
-
-			// If lower than return altitude, climb up first.
-			// If enforce_rtl_alt is true then forcing altitude change even if above.
-			_needs_climbing = true;
-
-		}
+		_needs_climbing = checkNeedsToClimb();
 
 	} else {
 		_is_current_planned_mission_item_valid = false;
@@ -202,9 +196,120 @@ void RtlDirectMissionLand::setActiveMissionItems()
 
 rtl_time_estimate_s RtlDirectMissionLand::calc_rtl_time_estimate()
 {
-	rtl_time_estimate_s time_estimate;
-	time_estimate.valid = false;
-	time_estimate.timestamp = hrt_absolute_time();
+	_rtl_time_estimator.update();
+	_rtl_time_estimator.reset();
 
-	return time_estimate;
+	if (_mission.count > 0 && hasMissionLandStart()) {
+		int32_t start_item_index{-1};
+		bool is_in_climbing_submode{false};
+
+		if (isActive()) {
+			start_item_index = math::max(_mission.current_seq, _mission.land_start_index);
+			is_in_climbing_submode = _needs_climbing;
+
+		} else {
+			start_item_index = _mission.land_start_index;
+			is_in_climbing_submode = checkNeedsToClimb();
+		}
+
+		if (start_item_index >= 0 && start_item_index < static_cast<int32_t>(_mission.count)) {
+			float altitude_at_calculation_point;
+			matrix::Vector2d hor_position_at_calculation_point{_global_pos_sub.get().lat, _global_pos_sub.get().lon};
+
+			if (is_in_climbing_submode) {
+				_rtl_time_estimator.addClimb(_rtl_alt - _global_pos_sub.get().alt);
+				altitude_at_calculation_point = math::max(_rtl_alt, _global_pos_sub.get().alt);
+
+				if (_enforce_rtl_alt && (_global_pos_sub.get().alt > _rtl_alt)) {
+					_rtl_time_estimator.addDescend(_rtl_alt - _global_pos_sub.get().alt);
+					altitude_at_calculation_point = _rtl_alt;
+				}
+
+			} else {
+				altitude_at_calculation_point = _global_pos_sub.get().alt;
+			}
+
+			while (start_item_index < _mission.count && start_item_index >= 0) {
+				int32_t next_mission_item_index;
+				size_t num_found_items{0U};
+				getNextPositionItems(start_item_index, &next_mission_item_index, num_found_items, 1U);
+
+				if (num_found_items > 0U) {
+					mission_item_s next_position_mission_item;
+					const dm_item_t dataman_id = static_cast<dm_item_t>(_mission.dataman_id);
+					bool success = _dataman_cache.loadWait(dataman_id, next_mission_item_index,
+									       reinterpret_cast<uint8_t *>(&next_position_mission_item), sizeof(next_position_mission_item), MAX_DATAMAN_LOAD_WAIT);
+
+					if (!success) {
+						// Dould not load the mission item, mark time estimate as invalid.
+						_rtl_time_estimator.reset();
+						break;
+					}
+
+					matrix::Vector2f direction{};
+					get_vector_to_next_waypoint(hor_position_at_calculation_point(0), hor_position_at_calculation_point(1),
+								    next_position_mission_item.lat, next_position_mission_item.lon, &direction(0), &direction(1));
+
+					float hor_dist = get_distance_to_next_waypoint(hor_position_at_calculation_point(0),
+							 hor_position_at_calculation_point(1), next_position_mission_item.lat, next_position_mission_item.lon);
+
+					_rtl_time_estimator.addHorDistance(hor_dist, direction);
+
+					if (next_position_mission_item.altitude > altitude_at_calculation_point) {
+						// check if it needs an additional climbing period or not
+						float max_alt_during_hor{0.f};
+
+						if (next_position_mission_item.nav_cmd != NAV_CMD_LOITER_TO_ALT) {
+							max_alt_during_hor = hor_dist / _rtl_time_estimator.getCruiseSpeed() * _param_climbrate_target.get();
+						}
+
+						_rtl_time_estimator.addClimb(next_position_mission_item.altitude - (altitude_at_calculation_point +
+									     max_alt_during_hor));
+
+					} else {
+						// check if it needs an additional descend period or not
+						if (next_position_mission_item.nav_cmd == NAV_CMD_VTOL_LAND) {
+							_rtl_time_estimator.addDescendMCLand(next_position_mission_item.altitude - altitude_at_calculation_point);
+
+						} else {
+							float max_alt_during_hor{0.f};
+
+							if (next_position_mission_item.nav_cmd != NAV_CMD_LOITER_TO_ALT) {
+								max_alt_during_hor = hor_dist / _rtl_time_estimator.getCruiseSpeed() * _param_sinkrate_target.get();
+							}
+
+							_rtl_time_estimator.addDescend(next_position_mission_item.altitude - (altitude_at_calculation_point -
+										       max_alt_during_hor));
+						}
+					}
+
+					start_item_index = next_mission_item_index + 1;
+					hor_position_at_calculation_point(0) = next_position_mission_item.lat;
+					hor_position_at_calculation_point(1) = next_position_mission_item.lon;
+					altitude_at_calculation_point = next_position_mission_item.altitude;
+
+
+				} else {
+					start_item_index = -1;
+				}
+			}
+		}
+	}
+
+	return _rtl_time_estimator.getEstimate();
+}
+
+bool RtlDirectMissionLand::checkNeedsToClimb()
+{
+	bool needs_climbing{false};
+
+	if ((_global_pos_sub.get().alt < _rtl_alt) || _enforce_rtl_alt) {
+
+		// If lower than return altitude, climb up first.
+		// If enforce_rtl_alt is true then forcing altitude change even if above.
+		needs_climbing = true;
+
+	}
+
+	return needs_climbing;
 }

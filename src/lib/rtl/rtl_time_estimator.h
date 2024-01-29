@@ -70,6 +70,12 @@ public:
 	void addDescend(float alt);
 	void addWait(float time_s);
 	void addDescendMCLand(float alt);
+	/**
+	 * @brief Get the cruise speed
+	 *
+	 * @return cruise speed [m/s]
+	 */
+	float getCruiseSpeed() const;
 
 private:
 	/**
@@ -93,13 +99,6 @@ private:
 	 * @return descend rate [m/s]
 	 */
 	float getDescendRate();
-
-	/**
-	 * @brief Get the cruise speed
-	 *
-	 * @return cruise speed [m/s]
-	 */
-	float getCruiseSpeed();
 
 	/**
 	 * @brief Get the Hover Land Speed

@@ -165,7 +165,7 @@ float RtlTimeEstimator::getCruiseGroundSpeed(const matrix::Vector2f &direction_n
 	return cruise_speed;
 }
 
-float RtlTimeEstimator::getCruiseSpeed()
+float RtlTimeEstimator::getCruiseSpeed() const
 {
 	float ret = 1e6f;
 

@@ -43,6 +43,8 @@
 
 #include "rtl_base.h"
 
+#include <lib/rtl/rtl_time_estimator.h>
+
 #include <uORB/Subscription.hpp>
 #include <uORB/topics/home_position.h>
 #include <uORB/topics/rtl_time_estimate.h>
@@ -65,8 +67,16 @@ public:
 private:
 	bool setNextMissionItem() override;
 	void setActiveMissionItems() override;
+	bool checkNeedsToClimb();
 
 	bool _needs_climbing{false}; 	//< Flag if climbing is required at the start
 	bool _enforce_rtl_alt{false};
 	float _rtl_alt{0.0f};	///< AMSL altitude at which the vehicle should return to the land position
+
+	RtlTimeEstimator _rtl_time_estimator;
+
+	DEFINE_PARAMETERS_CUSTOM_PARENT(MissionBase,
+					(ParamFloat<px4::params::FW_T_CLMB_R_SP>) _param_climbrate_target,
+					(ParamFloat<px4::params::FW_T_SINK_R_SP>) _param_sinkrate_target
+				       )
 };
