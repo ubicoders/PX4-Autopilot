@@ -52,6 +52,43 @@ RtlDirectMissionLand::RtlDirectMissionLand(Navigator *navigator) :
 
 }
 
+void
+RtlDirectMissionLand::updateDatamanCache()
+{
+	int32_t start_index;
+
+	if (isActive()) {
+		start_index = math::min(math::max(_mission.land_start_index, _mission.current_seq),
+					static_cast<int32_t>(_mission.count));
+
+	} else {
+		start_index = math::min(_mission.land_start_index, static_cast<int32_t>(_mission.count));
+	}
+
+	if ((start_index >= 0) && (_mission.count > 0) && hasMissionLandStart() && (start_index != _load_mission_index)) {
+
+		int32_t end_index = start_index + _dataman_cache_size_signed;
+
+		end_index = math::max(math::min(end_index, static_cast<int32_t>(_mission.count)), INT32_C(0));
+
+		for (int32_t index = start_index; index != end_index; index += math::signNoZero(_dataman_cache_size_signed)) {
+
+			_dataman_cache.load(static_cast<dm_item_t>(_mission.mission_dataman_id), index);
+		}
+
+		_load_mission_index = _mission.land_start_index;
+	}
+
+	_dataman_cache.update();
+}
+
+void RtlDirectMissionLand::on_inactive()
+{
+	MissionBase::on_active();
+
+	updateDatamanCache();
+}
+
 void RtlDirectMissionLand::on_activation()
 {
 	_land_detected_sub.update();
