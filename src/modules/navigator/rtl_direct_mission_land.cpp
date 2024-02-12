@@ -236,7 +236,7 @@ rtl_time_estimate_s RtlDirectMissionLand::calc_rtl_time_estimate()
 
 				if (num_found_items > 0U) {
 					mission_item_s next_position_mission_item;
-					const dm_item_t dataman_id = static_cast<dm_item_t>(_mission.dataman_id);
+					const dm_item_t dataman_id = static_cast<dm_item_t>(_mission.mission_dataman_id);
 					bool success = _dataman_cache.loadWait(dataman_id, next_mission_item_index,
 									       reinterpret_cast<uint8_t *>(&next_position_mission_item), sizeof(next_position_mission_item), MAX_DATAMAN_LOAD_WAIT);
 
