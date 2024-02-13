@@ -234,6 +234,8 @@ public:
 
 		float load_factor_correction;				///< Gain from normal load factor increase to total energy rate demand [m²/s³].
 		float load_factor;					///< Additional normal load factor.
+
+		float fast_descend;
 	};
 
 	/**
@@ -279,7 +281,6 @@ public:
 	struct Flag {
 		bool airspeed_enabled;			///< Flag if the airspeed sensor is enabled.
 		bool detect_underspeed_enabled;		///< Flag if underspeed detection is enabled.
-		bool fast_descend; 			///< Flag if descending with higher airspeed is allowed.
 	};
 public:
 	TECSControl() = default;
@@ -672,6 +673,7 @@ private:
 	float _equivalent_airspeed_min{10.0f};				///< equivalent airspeed demand lower limit (m/sec)
 	float _equivalent_airspeed_max{20.0f};				///< equivalent airspeed demand upper limit (m/sec)
 	float _fast_descend_alt_err{-1.f};	 				///< Altitude difference between current altitude to altitude setpoint needed to descend with higher airspeed [m].
+	float _fast_descend{0.f};					///< Value for fast descend in [0,1]. continuous value used to flatten the high speed value out when close to target altitude.
 
 	static constexpr float DT_MIN = 0.001f;				///< minimum allowed value of _dt (sec)
 	static constexpr float DT_MAX = 1.0f;				///< max value of _dt allowed before a filter state reset is performed (sec)
@@ -723,21 +725,20 @@ private:
 		.throttle_slewrate = 0.0f,
 		.load_factor_correction = 0.0f,
 		.load_factor = 1.0f,
+		.fast_descend = 0.f
 	};
 
 	TECSControl::Flag _control_flag{
 		.airspeed_enabled = false,
 		.detect_underspeed_enabled = false,
-		.fast_descend = false
 	};
 
 	/**
-	 * @brief Check if fast descend should be used
+	 * @brief Set fast descend value
 	 *
 	 * @param alt_setpoint is the altitude setpoint
 	 * @param alt is the
-	 * @return true if fast descend should be enabled
 	 */
-	bool _checkFastDescend(float alt_setpoint, float alt);
+	void _setFastDescend(float alt_setpoint, float alt);
 };
 
