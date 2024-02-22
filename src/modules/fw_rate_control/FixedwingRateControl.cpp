@@ -325,9 +325,6 @@ void FixedwingRateControl::Run()
 			/* bi-linear interpolation over airspeed for actuator trim scheduling */
 			Vector3f trim(_param_trim_roll.get(), _param_trim_pitch.get(), _param_trim_yaw.get());
 
-			_auto_trim_slew.update(_auto_trim.getTrim(), dt).print();
-			trim += _auto_trim_slew.getState();
-
 			if (airspeed < _param_fw_airspd_trim.get()) {
 				trim(0) += interpolate(airspeed, _param_fw_airspd_min.get(), _param_fw_airspd_trim.get(),
 						       _param_fw_dtrim_r_vmin.get(),
@@ -347,6 +344,8 @@ void FixedwingRateControl::Run()
 				trim(2) += interpolate(airspeed, _param_fw_airspd_trim.get(), _param_fw_airspd_max.get(), 0.0f,
 						       _param_fw_dtrim_y_vmax.get());
 			}
+
+			trim += _auto_trim_slew.update(_auto_trim.getTrim(), dt);
 
 			if (_vcontrol_mode.flag_control_rates_enabled) {
 				_rates_sp_sub.update(&_rates_sp);
@@ -375,6 +374,7 @@ void FixedwingRateControl::Run()
 
 				if (control_u.isAllFinite()) {
 					matrix::constrain(control_u + trim, -1.f, 1.f).copyTo(_vehicle_torque_setpoint.xyz);
+					_auto_trim.update(control_u + _auto_trim_slew.getState(), dt);
 
 				} else {
 					_rate_control.resetIntegral();
@@ -409,6 +409,7 @@ void FixedwingRateControl::Run()
 		} else {
 			// full manual
 			_rate_control.resetIntegral();
+			_auto_trim.reset();
 		}
 
 		// Add feed-forward from roll control output to yaw control output
@@ -436,11 +437,6 @@ void FixedwingRateControl::Run()
 				_vehicle_torque_setpoint.timestamp_sample = angular_velocity.timestamp_sample;
 				_vehicle_torque_setpoint_pub.publish(_vehicle_torque_setpoint);
 			}
-
-			_auto_trim.update(_vehicle_torque_setpoint, dt);
-
-		} else {
-			_auto_trim.reset();
 		}
 
 		updateActuatorControlsStatus(dt);

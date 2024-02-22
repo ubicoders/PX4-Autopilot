@@ -48,7 +48,6 @@
 #include <uORB/topics/parameter_update.h>
 #include <uORB/topics/vehicle_attitude.h>
 #include <uORB/topics/vehicle_land_detected.h>
-#include <uORB/topics/vehicle_torque_setpoint.h>
 #include <uORB/topics/vehicle_status.h>
 
 using namespace time_literals;
@@ -60,7 +59,7 @@ public:
 	~FwAutoTrim();
 
 	void reset();
-	void update(const vehicle_torque_setpoint_s &vehicle_torque_setpoint, float dt);
+	void update(const matrix::Vector3f &torque_sp, float dt);
 	int print_status();
 
 	const matrix::Vector3f &getTrim() const { return _trim_validated; }
@@ -69,7 +68,7 @@ protected:
 	void updateParams() override;
 
 private:
-	void publishStatus(const hrt_abstime &timestamp_sample);
+	void publishStatus(const hrt_abstime now);
 
 	uORB::Publication<auto_trim_status_s> _auto_trim_status_pub{ORB_ID(auto_trim_status)};
 

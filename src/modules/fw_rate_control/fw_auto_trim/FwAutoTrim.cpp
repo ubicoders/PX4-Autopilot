@@ -60,7 +60,7 @@ void FwAutoTrim::reset()
 	_state = state::idle;
 }
 
-void FwAutoTrim::update(const vehicle_torque_setpoint_s &vehicle_torque_setpoint, const float dt)
+void FwAutoTrim::update(const Vector3f &torque_sp, const float dt)
 {
 	if (_vehicle_land_detected_sub.updated()) {
 		vehicle_land_detected_s vehicle_land_detected;
@@ -100,13 +100,12 @@ void FwAutoTrim::update(const vehicle_torque_setpoint_s &vehicle_torque_setpoint
 	}
 
 	const hrt_abstime now = hrt_absolute_time();
-	const Vector3f torque{vehicle_torque_setpoint.xyz};
 
 	const bool run_auto_trim = _fixed_wing
 				   && _armed
 				   && !_landed
 				   && (dt > 0.001f) && (dt < 0.1f)
-				   && torque.isAllFinite()
+				   && torque_sp.isAllFinite()
 				   // && _calibrated_airspeed_m_s >= _param_fw_airspd_min.get()
 				   // && _calibrated_airspeed_m_s <= _param_fw_airspd_max.get()
 				   && _cos_tilt > cosf(math::radians(_kTiltMaxDeg));
@@ -124,7 +123,7 @@ void FwAutoTrim::update(const vehicle_torque_setpoint_s &vehicle_torque_setpoint
 			break;
 
 		case state::sampling:
-			_trim_estimate.update(torque);
+			_trim_estimate.update(torque_sp);
 
 			if ((now - _state_start_time) > 5_s) {
 				_state = state::sampling_test;
@@ -134,7 +133,7 @@ void FwAutoTrim::update(const vehicle_torque_setpoint_s &vehicle_torque_setpoint
 			break;
 
 		case state::sampling_test:
-			_trim_test.update(torque);
+			_trim_test.update(torque_sp);
 
 			if ((now - _state_start_time) > 2_s) {
 				_state = state::verification;
@@ -171,16 +170,14 @@ void FwAutoTrim::update(const vehicle_torque_setpoint_s &vehicle_torque_setpoint
 		_state = state::fail;
 	}
 
-	publishStatus(vehicle_torque_setpoint.timestamp_sample);
+	publishStatus(now);
 
 	perf_end(_cycle_perf);
 }
 
-void FwAutoTrim::publishStatus(const hrt_abstime &timestamp_sample)
+void FwAutoTrim::publishStatus(const hrt_abstime now)
 {
 	auto_trim_status_s status_msg{};
-
-	status_msg.timestamp_sample = timestamp_sample;
 
 	_trim_validated.copyTo(status_msg.trim_validated);
 	_trim_estimate.mean().copyTo(status_msg.trim_estimate);
@@ -189,7 +186,8 @@ void FwAutoTrim::publishStatus(const hrt_abstime &timestamp_sample)
 	_trim_test.variance().copyTo(status_msg.trim_test_var);
 	status_msg.state = static_cast<int>(_state);
 
-	status_msg.timestamp = hrt_absolute_time();
+	status_msg.timestamp = now;
+	status_msg.timestamp_sample = now;
 
 	_auto_trim_status_pub.publish(status_msg);
 }
