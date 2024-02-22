@@ -38,13 +38,11 @@
 using namespace time_literals;
 using matrix::Vector3f;
 
-FwAutoTrim::FwAutoTrim(bool is_vtol) :
-	ModuleParams(nullptr),
-	WorkItem(MODULE_NAME, px4::wq_configurations::nav_and_controllers),
-	_vehicle_torque_setpoint_sub(this, ORB_ID(vehicle_torque_setpoint), is_vtol ? 1 : 0)
+FwAutoTrim::FwAutoTrim(ModuleParams *parent) :
+	ModuleParams(parent)
 {
+	_auto_trim_status_pub.advertise();
 	updateParams();
-	reset();
 }
 
 FwAutoTrim::~FwAutoTrim()
@@ -52,59 +50,24 @@ FwAutoTrim::~FwAutoTrim()
 	perf_free(_cycle_perf);
 }
 
-bool FwAutoTrim::init()
-{
-	if (!_vehicle_torque_setpoint_sub.registerCallback()) {
-		PX4_ERR("callback registration failed");
-		return false;
-	}
-
-	_auto_trim_status_pub.advertise();
-
-	return true;
-}
-
-void FwAutoTrim::reset()
-{
-}
-
 void FwAutoTrim::updateParams()
 {
 	ModuleParams::updateParams();
 }
 
-void FwAutoTrim::Run()
+void FwAutoTrim::reset()
 {
-	if (should_exit()) {
-		_vehicle_torque_setpoint_sub.unregisterCallback();
-		exit_and_cleanup();
-		return;
-	}
+	_state = state::idle;
+}
 
+void FwAutoTrim::update(const vehicle_torque_setpoint_s &vehicle_torque_setpoint, const float dt)
+{
 	if (_vehicle_land_detected_sub.updated()) {
 		vehicle_land_detected_s vehicle_land_detected;
 
 		if (_vehicle_land_detected_sub.copy(&vehicle_land_detected)) {
 			_landed = vehicle_land_detected.landed;
 		}
-	}
-
-
-	vehicle_torque_setpoint_s vehicle_torque_setpoint;
-
-	if (!_vehicle_torque_setpoint_sub.update(&vehicle_torque_setpoint)
-	    || (vehicle_torque_setpoint.timestamp == _timestamp_last)) {
-		return;
-	}
-
-	// check for parameter updates
-	if (_parameter_update_sub.updated()) {
-		// clear update
-		parameter_update_s pupdate;
-		_parameter_update_sub.copy(&pupdate);
-
-		// update parameters from storage
-		updateParams();
 	}
 
 	perf_begin(_cycle_perf);
@@ -135,9 +98,6 @@ void FwAutoTrim::Run()
 			_cos_tilt = _tailsitter ? earth_z_in_body_frame(0) : earth_z_in_body_frame(2);
 		}
 	}
-
-	const float dt = (vehicle_torque_setpoint.timestamp - _timestamp_last) * 1e-6f;
-	_timestamp_last = vehicle_torque_setpoint.timestamp;
 
 	const hrt_abstime now = hrt_absolute_time();
 	const Vector3f torque{vehicle_torque_setpoint.xyz};
@@ -234,42 +194,6 @@ void FwAutoTrim::publishStatus(const hrt_abstime &timestamp_sample)
 	_auto_trim_status_pub.publish(status_msg);
 }
 
-int FwAutoTrim::task_spawn(int argc, char *argv[])
-{
-	bool is_vtol = false;
-
-	if (argc > 1) {
-		if (strcmp(argv[1], "vtol") == 0) {
-			is_vtol = true;
-		}
-	}
-
-	FwAutoTrim *instance = new FwAutoTrim(is_vtol);
-
-	if (instance) {
-		_object.store(instance);
-		_task_id = task_id_is_work_queue;
-
-		if (instance->init()) {
-			return PX4_OK;
-		}
-
-	} else {
-		PX4_ERR("alloc failed");
-	}
-
-	delete instance;
-	_object.store(nullptr);
-	_task_id = -1;
-
-	return PX4_ERROR;
-}
-
-int FwAutoTrim::custom_command(int argc, char *argv[])
-{
-	return print_usage("unknown command");
-}
-
 int FwAutoTrim::print_status()
 {
 	perf_print_counter(_cycle_perf);
@@ -278,28 +202,4 @@ int FwAutoTrim::print_status()
 	_trim_validated.print();
 
 	return 0;
-}
-
-int FwAutoTrim::print_usage(const char *reason)
-{
-	if (reason) {
-		PX4_WARN("%s\n", reason);
-	}
-
-	PRINT_MODULE_DESCRIPTION(
-		R"DESCR_STR(
-### Description
-
-)DESCR_STR");
-
-	PRINT_MODULE_USAGE_NAME("fw_auto_trim", "auto-trim");
-	PRINT_MODULE_USAGE_COMMAND("start");
-	PRINT_MODULE_USAGE_DEFAULT_COMMANDS();
-
-	return 0;
-}
-
-extern "C" __EXPORT int fw_auto_trim_main(int argc, char *argv[])
-{
-	return FwAutoTrim::main(argc, argv);
 }

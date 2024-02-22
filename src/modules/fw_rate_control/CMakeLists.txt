@@ -30,6 +30,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 ############################################################################
+add_subdirectory(fw_auto_trim)
 
 px4_add_module(
 	MODULE modules__fw_rate_control
@@ -38,6 +39,7 @@ px4_add_module(
 		FixedwingRateControl.cpp
 		FixedwingRateControl.hpp
 	DEPENDS
+		FwAutoTrim
 		px4_work_queue
 		RateControl
 		SlewRate

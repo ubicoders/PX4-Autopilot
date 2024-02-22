@@ -41,10 +41,8 @@
 #include <px4_platform_common/module.h>
 #include <px4_platform_common/module_params.h>
 #include <px4_platform_common/posix.h>
-#include <px4_platform_common/px4_work_queue/WorkItem.hpp>
 #include <uORB/Publication.hpp>
 #include <uORB/Subscription.hpp>
-#include <uORB/SubscriptionCallback.hpp>
 #include <uORB/topics/airspeed_validated.h>
 #include <uORB/topics/auto_trim_status.h>
 #include <uORB/topics/parameter_update.h>
@@ -55,40 +53,23 @@
 
 using namespace time_literals;
 
-class FwAutoTrim : public ModuleBase<FwAutoTrim>, public ModuleParams,
-	public px4::WorkItem
+class FwAutoTrim : public ModuleParams
 {
 public:
-	FwAutoTrim(bool is_vtol);
-	~FwAutoTrim() override;
-
-	/** @see ModuleBase */
-	static int task_spawn(int argc, char *argv[]);
-
-	/** @see ModuleBase */
-	static int custom_command(int argc, char *argv[]);
-
-	/** @see ModuleBase */
-	static int print_usage(const char *reason = nullptr);
-
-	bool init();
-
-	/** @see ModuleBase::print_status() */
-	int print_status() override;
-
-private:
-	void Run() override;
-	void updateParams() override;
+	FwAutoTrim(ModuleParams *parent);
+	~FwAutoTrim();
 
 	void reset();
+	void update(const vehicle_torque_setpoint_s &vehicle_torque_setpoint, float dt);
+	int print_status();
 
+protected:
+	void updateParams() override;
+
+private:
 	void publishStatus(const hrt_abstime &timestamp_sample);
 
 	uORB::Publication<auto_trim_status_s> _auto_trim_status_pub{ORB_ID(auto_trim_status)};
-
-	uORB::SubscriptionCallbackWorkItem _vehicle_torque_setpoint_sub;
-
-	uORB::SubscriptionInterval _parameter_update_sub{ORB_ID(parameter_update), 1_s};
 
 	uORB::Subscription _vehicle_land_detected_sub{ORB_ID(vehicle_land_detected)};
 	uORB::Subscription _airspeed_validated_sub{ORB_ID(airspeed_validated)};
@@ -104,7 +85,6 @@ private:
 		fail = auto_trim_status_s::STATE_FAIL,
 	} _state{state::idle};
 
-	hrt_abstime _timestamp_last{0};
 	hrt_abstime _state_start_time{0};
 
 	bool _armed{false};

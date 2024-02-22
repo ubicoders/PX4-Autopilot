@@ -69,6 +69,8 @@
 #include <uORB/topics/vehicle_thrust_setpoint.h>
 #include <uORB/topics/vehicle_torque_setpoint.h>
 
+#include "fw_auto_trim/FwAutoTrim.hpp"
+
 using matrix::Eulerf;
 using matrix::Quatf;
 
@@ -208,6 +210,8 @@ private:
 	)
 
 	RateControl _rate_control; ///< class for rate control calculations
+
+	FwAutoTrim _auto_trim{this};
 
 	void updateActuatorControlsStatus(float dt);
 

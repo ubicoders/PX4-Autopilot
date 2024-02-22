@@ -30,17 +30,9 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 ############################################################################
-
-px4_add_module(
-	MODULE modules__fw_auto_trim
-	MAIN fw_auto_trim
-	COMPILE_FLAGS
-		${MAX_CUSTOM_OPT_LEVEL}
-	SRCS
-		FwAutoTrim.cpp
-		FwAutoTrim.hpp
-	DEPENDS
-		hysteresis
-		mathlib
-		px4_work_queue
+px4_add_library(FwAutoTrim
+	FwAutoTrim.cpp
 )
+
+# target_link_libraries(FwAutoTrim)
+target_include_directories(FwAutoTrim PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
