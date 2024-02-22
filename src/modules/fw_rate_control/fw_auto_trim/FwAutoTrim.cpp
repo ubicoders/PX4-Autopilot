@@ -107,8 +107,8 @@ void FwAutoTrim::update(const vehicle_torque_setpoint_s &vehicle_torque_setpoint
 				   && !_landed
 				   && (dt > 0.001f) && (dt < 0.1f)
 				   && torque.isAllFinite()
-				   && _calibrated_airspeed_m_s >= _param_fw_airspd_min.get()
-				   && _calibrated_airspeed_m_s <= _param_fw_airspd_max.get()
+				   // && _calibrated_airspeed_m_s >= _param_fw_airspd_min.get()
+				   // && _calibrated_airspeed_m_s <= _param_fw_airspd_max.get()
 				   && _cos_tilt > cosf(math::radians(_kTiltMaxDeg));
 
 	if (run_auto_trim) {

@@ -90,3 +90,14 @@ protected:
 	Type _slew_rate{}; ///< maximum rate of change for the value
 	Type _value{}; ///< state to keep last value of the slew rate
 };
+
+template<>
+inline matrix::Vector3f SlewRate<matrix::Vector3f>::update(const matrix::Vector3f new_value, const float deltatime)
+{
+	// Limit the rate of change of the value
+	const matrix::Vector3f dvalue_desired = new_value - _value;
+	const matrix::Vector3f dvalue_max = _slew_rate * deltatime;
+	const matrix::Vector3f dvalue = matrix::constrain(dvalue_desired, -dvalue_max, dvalue_max);
+	_value += dvalue;
+	return _value;
+}

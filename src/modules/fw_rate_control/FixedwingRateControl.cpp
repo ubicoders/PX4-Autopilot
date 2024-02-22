@@ -54,6 +54,7 @@ FixedwingRateControl::FixedwingRateControl(bool vtol) :
 	parameters_update();
 
 	_rate_ctrl_status_pub.advertise();
+	_auto_trim_slew.setSlewRate(Vector3f(0.01f, 0.01f, 0.01f));
 }
 
 FixedwingRateControl::~FixedwingRateControl()
@@ -323,6 +324,9 @@ void FixedwingRateControl::Run()
 
 			/* bi-linear interpolation over airspeed for actuator trim scheduling */
 			Vector3f trim(_param_trim_roll.get(), _param_trim_pitch.get(), _param_trim_yaw.get());
+
+			_auto_trim_slew.update(_auto_trim.getTrim(), dt).print();
+			trim += _auto_trim_slew.getState();
 
 			if (airspeed < _param_fw_airspd_trim.get()) {
 				trim(0) += interpolate(airspeed, _param_fw_airspd_min.get(), _param_fw_airspd_trim.get(),

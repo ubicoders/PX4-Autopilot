@@ -212,6 +212,7 @@ private:
 	RateControl _rate_control; ///< class for rate control calculations
 
 	FwAutoTrim _auto_trim{this};
+	SlewRate<matrix::Vector3f> _auto_trim_slew{}; ///< prevents large trim changes
 
 	void updateActuatorControlsStatus(float dt);
 

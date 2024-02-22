@@ -63,6 +63,8 @@ public:
 	void update(const vehicle_torque_setpoint_s &vehicle_torque_setpoint, float dt);
 	int print_status();
 
+	const matrix::Vector3f &getTrim() const { return _trim_validated; }
+
 protected:
 	void updateParams() override;
 
