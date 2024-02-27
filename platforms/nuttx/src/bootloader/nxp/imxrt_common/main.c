@@ -395,7 +395,7 @@ flash_func_sector_size(unsigned sector)
 	return 0;
 }
 
-bool flash_func_is_sector_blank(unsigned sector)
+int flash_func_is_sector_blank(unsigned sector)
 {
 	const uint32_t bytes_per_sector =  flash_func_sector_size(sector);
 	uint32_t *address = (uint32_t *)(IMXRT_FLEXSPI1_CIPHER_BASE + (sector * bytes_per_sector));
@@ -409,6 +409,8 @@ bool flash_func_is_sector_blank(unsigned sector)
 			break;
 		}
 	}
+
+	return !blank;
 }
 
 /*!
@@ -428,7 +430,7 @@ flash_func_erase_sector(unsigned sector, bool force)
 		return;
 	}
 
-	if (force || !flash_func_is_sector_blank(sector)) {
+	if (force || flash_func_is_sector_blank(sector) != 0) {
 		struct flexspi_nor_config_s *pConfig = &g_bootConfig;
 
 		uintptr_t offset = ((uintptr_t) address) - IMXRT_FLEXSPI1_CIPHER_BASE;
