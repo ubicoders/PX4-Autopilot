@@ -545,6 +545,10 @@ menu "Zenoh publishers/subscribers"
 		bool "rpm"
 		default n
 
+	config ZENOH_PUBSUB_RTL_STATUS
+		bool "rtl_status"
+		default n
+
 	config ZENOH_PUBSUB_RTL_TIME_ESTIMATE
 		bool "rtl_time_estimate"
 		default n
@@ -966,6 +970,7 @@ config ZENOH_PUBSUB_ALL_SELECTION
 	select ZENOH_PUBSUB_REGISTER_EXT_COMPONENT_REPLY
 	select ZENOH_PUBSUB_REGISTER_EXT_COMPONENT_REQUEST
 	select ZENOH_PUBSUB_RPM
+	select ZENOH_PUBSUB_RTL_STATUS
 	select ZENOH_PUBSUB_RTL_TIME_ESTIMATE
 	select ZENOH_PUBSUB_SATELLITE_INFO
 	select ZENOH_PUBSUB_SENSOR_ACCEL
