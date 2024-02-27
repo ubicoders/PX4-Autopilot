@@ -464,7 +464,7 @@ flash_func_erase_sector(unsigned sector, bool force)
 		return;
 	}
 
-	if (force || (up_progmem_ispageerased(sector) == 0)) {
+	if (force || (up_progmem_ispageerased(sector) != 0)) {
 		up_progmem_eraseblock(sector);
 	}
 }

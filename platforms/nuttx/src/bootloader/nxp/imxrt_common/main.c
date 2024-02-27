@@ -428,7 +428,7 @@ flash_func_erase_sector(unsigned sector, bool force)
 		return;
 	}
 
-	if (force || flash_func_is_sector_blank(sector)) {
+	if (force || !flash_func_is_sector_blank(sector)) {
 		struct flexspi_nor_config_s *pConfig = &g_bootConfig;
 
 		uintptr_t offset = ((uintptr_t) address) - IMXRT_FLEXSPI1_CIPHER_BASE;
