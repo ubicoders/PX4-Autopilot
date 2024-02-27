@@ -132,7 +132,7 @@ elif [ "$PX4_SIMULATOR" = "gz" ] || [ "$(param show -q SIM_GZ_EN)" = "1" ]; then
 		fi
 		sleep 1 # Needed to wait for the model to spawn
 		gz service -s /gui/follow --reqtype gz.msgs.StringMsg --reptype gz.msgs.Boolean --timeout 2000 --req "data: \"${PX4_GZ_MODEL_NAME}_0\""
-		gz service -s /gui/follow/offset --reqtype gz.msgs.Vector3d --reptype gz.msgs.Boolean --timeout 2000 --req "x: 2, y: 1, z: 1"
+		gz service -s /gui/follow/offset --reqtype gz.msgs.Vector3d --reptype gz.msgs.Boolean --timeout 2000 --req "x: -6, y: 0, z: 6"
 
 	else
 		echo "ERROR [init] failed to pass only PX4_GZ_MODEL_NAME or PX4_SIM_MODEL"
