@@ -60,6 +60,8 @@
 #include <uORB/topics/actuator_outputs.h>
 #include <uORB/topics/parameter_update.h>
 
+#include <uORB/topics/ubicoders_msg_act_out.h>
+
 using namespace time_literals;
 
 /**
@@ -92,6 +94,30 @@ public:
 	virtual void mixerChanged() {}
 };
 
+//ubicoders ========================
+#ifndef UBICODERSH_Mixer_H
+#define UBICODERSH_Mixer_H
+
+class UbicodersMixer
+{
+
+public:
+    UbicodersMixer();
+    ~UbicodersMixer();
+
+	void subsAndUpdate();
+    	void update(bool isArmed);
+	void update(bool isArmed, OutputModuleInterface &_interface);
+
+	ubicoders_msg_act_out_s _act_out_data{};
+	uORB::Subscription _ubi_msg_act_out_subscriber{ORB_ID(ubicoders_msg_act_out)};
+	uint16_t servo_output[4] = {900, 900, 900, 900};
+};
+
+#endif
+//========================
+
+
 /**
  * @class MixingOutput
  * This handles the mixing, arming/disarming and all subscriptions required for that.
@@ -108,6 +134,8 @@ public:
 		Disabled, ///< Do not drive scheduling (the module needs to call ScheduleOnInterval() for example)
 		Auto ///< Drive scheduling based on subscribed actuator controls topics (via uORB callbacks)
 	};
+
+	UbicodersMixer _ubi_mixer;
 
 	/**
 	 * Constructor

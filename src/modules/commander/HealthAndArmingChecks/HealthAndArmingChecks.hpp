@@ -142,32 +142,32 @@ private:
 
 	HealthAndArmingCheckBase *_checks[30] = {
 		&_accelerometer_checks,
-		&_airspeed_checks,
-		&_baro_checks,
-		&_cpu_resource_checks,
-		&_distance_sensor_checks,
-		&_esc_checks,
-		&_estimator_checks,
-		&_failure_detector_checks,
-		&_gyro_checks,
-		&_imu_consistency_checks,
-		&_magnetometer_checks,
-		&_manual_control_checks,
-		&_home_position_checks,
-		&_mission_checks,
-		&_offboard_checks, // must be after _estimator_checks
-		&_mode_checks, // must be after _estimator_checks, _home_position_checks, _mission_checks, _offboard_checks
-		&_parachute_checks,
-		&_power_checks,
-		&_rc_calibration_checks,
-		&_sd_card_checks,
-		&_system_checks, // must be after _estimator_checks & _home_position_checks
-		&_battery_checks,
-		&_wind_checks,
-		&_geofence_checks, // must be after _home_position_checks
-		&_flight_time_checks,
-		&_rc_and_data_link_checks,
-		&_vtol_checks,
+		// &_airspeed_checks,
+		// &_baro_checks,
+		// &_cpu_resource_checks,
+		// &_distance_sensor_checks,
+		// &_esc_checks,
+		// &_estimator_checks,
+		// &_failure_detector_checks,
+		// &_gyro_checks,
+		// &_imu_consistency_checks,
+		// &_magnetometer_checks,
+		// &_manual_control_checks,
+		// &_home_position_checks,
+		// &_mission_checks,
+		// &_offboard_checks, // must be after _estimator_checks
+		// &_mode_checks, // must be after _estimator_checks, _home_position_checks, _mission_checks, _offboard_checks
+		// &_parachute_checks,
+		// &_power_checks,
+		// &_rc_calibration_checks,
+		// &_sd_card_checks,
+		// &_system_checks, // must be after _estimator_checks & _home_position_checks
+		// &_battery_checks,
+		// &_wind_checks,
+		// &_geofence_checks, // must be after _home_position_checks
+		// &_flight_time_checks,
+		// &_rc_and_data_link_checks,
+		// &_vtol_checks,
 	};
 };
 

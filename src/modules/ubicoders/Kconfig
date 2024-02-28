@@ -1,0 +1,5 @@
+menuconfig MODULES_UBICODERS # [MODULES]_{MODULE_NAME}
+    bool "ubicoders_simple_app" # any name you want
+    default y  # default, the module is enabled
+    ---help---
+        Enable support for ubicoders_simple_app

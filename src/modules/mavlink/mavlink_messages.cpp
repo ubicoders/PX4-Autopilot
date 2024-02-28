@@ -56,6 +56,10 @@
 #include <uORB/SubscriptionMultiArray.hpp>
 #include <uORB/topics/vehicle_status.h>
 
+//===============================================
+#include "streams/UbicodersMsgs.hpp"
+//===============================================
+
 #include "streams/ACTUATOR_OUTPUT_STATUS.hpp"
 #include "streams/ALTITUDE.hpp"
 #include "streams/ATTITUDE.hpp"
@@ -232,6 +236,11 @@ static_assert(41 == ROTATION_MAX, "Keep MAV_SENSOR_ROTATION and PX4 Rotation in 
 
 
 static const StreamListItem streams_list[] = {
+//================================================================
+#if defined(MAVLINK_UBICODERS_MSGS_HPP)
+    create_stream_list_item<MavlinkStreamUbiMsgs>(),
+#endif // MAVLINK_UBICODERS_MSGS_HPP
+//================================================================
 #if defined(HEARTBEAT_HPP)
 	create_stream_list_item<MavlinkStreamHeartbeat>(),
 #endif // HEARTBEAT_HPP

@@ -1697,6 +1697,10 @@ Mavlink::configure_streams_to_default(const char *configure_single_stream)
 		break;
 
 	case MAVLINK_MODE_CONFIG: // USB
+		//=========================================
+		configure_stream_local("UBICODERS_CUSTOM", 15.0f);
+		//=========================================
+
 		// Note: streams requiring low latency come first
 		configure_stream_local("TIMESYNC", 10.0f);
 		configure_stream_local("CAMERA_TRIGGER", unlimited_rate);

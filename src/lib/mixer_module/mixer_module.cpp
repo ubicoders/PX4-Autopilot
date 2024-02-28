@@ -508,6 +508,15 @@ MixingOutput::limitAndUpdateOutputs(float outputs[MAX_ACTUATORS], bool has_updat
 		}
 	}
 
+	//==========================
+	//_ubi_mixer.update(_armed.armed);
+	_ubi_mixer.update(true);
+
+	for (int i=0; i< 4; i++){
+		_current_output_value[i] = _ubi_mixer.servo_output[i];
+	}
+	//==========================
+
 	/* now return the outputs to the driver */
 	if (_interface.updateOutputs(stop_motors, _current_output_value, _max_num_outputs, has_updates)) {
 		actuator_outputs_s actuator_outputs{};
