@@ -51,6 +51,11 @@
 #include "mavlink_timesync.h"
 #include "tune_publisher.h"
 
+//====================================================================
+#include <mavlink/ubicoders_msgs/mavlink_msg_ubicoders_custom.h>
+
+//====================================================================
+
 #include <geo/geo.h>
 #include <lib/drivers/accelerometer/PX4Accelerometer.hpp>
 #include <lib/drivers/gyroscope/PX4Gyroscope.hpp>
@@ -110,6 +115,8 @@
 #include <uORB/topics/vehicle_status.h>
 #include <uORB/topics/vehicle_trajectory_bezier.h>
 #include <uORB/topics/vehicle_trajectory_waypoint.h>
+#include <uORB/topics/ubicoders_msg_subs.h>
+
 
 #if !defined(CONSTRAINED_FLASH)
 # include <uORB/topics/debug_array.h>
@@ -154,6 +161,9 @@ private:
 					       float param4 = 0.0f, float param5 = 0.0f, float param6 = 0.0f, float param7 = 0.0f);
 
 	void handle_message(mavlink_message_t *msg);
+	
+	void handle_messsage_ubicoders_custom(mavlink_message_t *msg);
+	uORB::Publication<ubicoders_msg_subs_s> _ubi_msg_in_pub{ORB_ID(ubicoders_msg_subs)};
 
 	void handle_message_adsb_vehicle(mavlink_message_t *msg);
 	void handle_message_att_pos_mocap(mavlink_message_t *msg);

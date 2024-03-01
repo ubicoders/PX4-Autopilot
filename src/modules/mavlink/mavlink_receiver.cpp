@@ -122,10 +122,34 @@ MavlinkReceiver::acknowledge(uint8_t sysid, uint8_t compid, uint16_t command, ui
 	_cmd_ack_pub.publish(command_ack);
 }
 
+//==============================================
+void MavlinkReceiver::handle_messsage_ubicoders_custom(mavlink_message_t *msg)
+{
+    //PX4_INFO("Recinving new msg 229");
+    mavlink_ubicoders_custom_t ubi_msg;
+    mavlink_msg_ubicoders_custom_decode(msg, &ubi_msg);
+
+    //PX4_INFO("odd number %d", (int)ubi_msg.odd_number);
+
+	struct ubicoders_msg_subs_s ubi;
+    memset(&ubi, 0, sizeof(ubi));
+
+    ubi.timestamp = hrt_absolute_time();
+    ubi.odd_number_input = ubi_msg.odd_number;
+
+    _ubi_msg_in_pub.publish(ubi);
+}
+//===============================================
+
 void
 MavlinkReceiver::handle_message(mavlink_message_t *msg)
 {
 	switch (msg->msgid) {
+	//=====================================================
+    case MAVLINK_MSG_ID_UBICODERS_CUSTOM:
+        handle_messsage_ubicoders_custom(msg);
+        break;
+	//=====================================================
 	case MAVLINK_MSG_ID_COMMAND_LONG:
 		handle_message_command_long(msg);
 		break;
