@@ -90,7 +90,7 @@ void UbicodersModule::Run()
 	if (_ubi_msg_subsriber.updated()) {
 		ubicoders_msg_subs_s ubi_msg;
 		_ubi_msg_subsriber.copy(&ubi_msg);
-		//PX4_INFO("i m here 2");
+		// PX4_INFO("i m here 2");
 
 		// publish some data
 		ubicoders_msg_pub_s data{};

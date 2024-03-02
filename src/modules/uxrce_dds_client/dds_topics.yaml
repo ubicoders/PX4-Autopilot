@@ -23,6 +23,12 @@ publications:
   # - topic: /fmu/out/vehicle_angular_velocity
   #   type: px4_msgs::msg::VehicleAngularVelocity
 
+  - topic: /fmu/out/ubicoders_msg_subs
+    type: px4_msgs::msg::UbicodersMsgSubs
+
+  - topic: /fmu/out/ubicoders_msg_pub
+    type: px4_msgs::msg::UbicodersMsgPub
+
   - topic: /fmu/out/vehicle_attitude
     type: px4_msgs::msg::VehicleAttitude
 
@@ -48,6 +54,8 @@ publications:
     type: px4_msgs::msg::VehicleTrajectoryWaypoint
 
 subscriptions:
+  - topic: /fmu/in/ubicoders_msg_subs
+    type: px4_msgs::msg::UbicodersMsgSubs
 
   - topic: /fmu/in/offboard_control_mode
     type: px4_msgs::msg::OffboardControlMode
