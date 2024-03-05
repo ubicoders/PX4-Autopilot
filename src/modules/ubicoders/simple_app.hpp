@@ -32,7 +32,8 @@
 
 using namespace time_literals;
 
-class UbicodersModule : public ModuleBase<UbicodersModule>, public ModuleParams, public px4::ScheduledWorkItem
+class UbicodersModule : public ModuleBase<UbicodersModule>, 
+public ModuleParams, public px4::ScheduledWorkItem
 {
 public:
 	UbicodersModule();
