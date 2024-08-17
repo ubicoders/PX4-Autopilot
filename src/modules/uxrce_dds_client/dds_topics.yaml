@@ -47,8 +47,20 @@ publications:
   - topic: /fmu/out/vehicle_trajectory_waypoint_desired
     type: px4_msgs::msg::VehicleTrajectoryWaypoint
 
+  # ==================================
+  # - topic: /fmu/out/ubicoders_msg_pub
+  #   type: px4_msgs::msg::UbicodersMsgPub
+ # ==================================
+
+
 subscriptions:
 
+  - topic: /fmu/in/ubicoders_msg_subs
+    type: px4_msgs::msg::UbicodersMsgSubs
+
+  - topic: /fmu/in/ubicoders_msg_ips
+    type: px4_msgs::msg::UbicodersMsgIps
+    
   - topic: /fmu/in/offboard_control_mode
     type: px4_msgs::msg::OffboardControlMode
 

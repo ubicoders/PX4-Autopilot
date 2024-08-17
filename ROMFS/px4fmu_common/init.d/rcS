@@ -555,3 +555,6 @@ unset VEHICLE_TYPE
 # Boot is complete, inform MAVLink app(s) that the system is now fully up and running.
 #
 mavlink boot_complete
+
+
+uxrce_dds_client start -d /dev/ttyACM0
