@@ -143,7 +143,7 @@ MulticopterAttitudeControl::generate_attitude_setpoint(const Quatf &q, float dt,
 	_man_pitch_input_filter.setParameters(dt, _param_mc_man_tilt_tau.get());
 
 	// we want to fly towards the direction of (roll, pitch)
-	Vector2f v = Vector2f(_man_roll_input_filter.update(_manual_control_setpoint.roll * _man_tilt_max),
+	Vector2f v = Vector2f(_man_roll_input_filter.update(-_manual_control_setpoint.roll * _man_tilt_max),
 			      -_man_pitch_input_filter.update(_manual_control_setpoint.pitch * _man_tilt_max));
 	float v_norm = v.norm(); // the norm of v defines the tilt angle
 
