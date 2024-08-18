@@ -18,7 +18,9 @@
 #include <uORB/topics/vehicle_status.h>
 
 #include <uORB/topics/ubicoders_msg_ips.h>
+#include <uORB/topics/ubicoders_msg_debug.h>
 #include <uORB/topics/ubicoders_msg_auto_control_setpoint.h>
+
 
 using namespace time_literals;
 
@@ -47,8 +49,8 @@ private:
 
 	// Publications
 	uORB::Publication<orb_test_s> _orb_test_pub{ORB_ID(orb_test)};
-	uORB::Publication<orb_test_s> _auto_control_sp{ORB_ID(ubicoders_msg_auto_control_setpoint)};
-
+	uORB::Publication<ubicoders_msg_auto_control_setpoint_s> _auto_control_sp_pub{ORB_ID(ubicoders_msg_auto_control_setpoint)};
+	uORB::Publication<ubicoders_msg_debug_s> _ubi_debug_pub{ORB_ID(ubicoders_msg_debug)};
 
 	// Subscriptions
 	
@@ -58,6 +60,12 @@ private:
 	uORB::Subscription _ips_sub{ORB_ID(ubicoders_msg_ips)};
 
 	ubicoders_msg_ips_s _ips {};
+	ubicoders_msg_debug_s _debug_msg {};
+	ubicoders_msg_auto_control_setpoint_s _auto_ctrl_sp {};
+	double pos_x_sp = 0.0;
+	double pos_y_sp = 0.0;
+	double pos_z_sp = 0.0;
+
 
 	// Performance (perf) counters
 	perf_counter_t _loop_perf{perf_alloc(PC_ELAPSED, MODULE_NAME ": cycle")};

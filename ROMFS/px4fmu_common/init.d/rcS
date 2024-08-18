@@ -558,3 +558,4 @@ mavlink boot_complete
 
 
 uxrce_dds_client start -d /dev/ttyACM0
+ubicoders_auto_pos start

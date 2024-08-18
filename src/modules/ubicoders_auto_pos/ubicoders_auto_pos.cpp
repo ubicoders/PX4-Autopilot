@@ -14,6 +14,7 @@ UbicodersAutoPosModule::~UbicodersAutoPosModule()
 
 bool UbicodersAutoPosModule::init()
 {
+	ScheduleOnInterval(10000_us);
 	return true;
 }
 
@@ -28,13 +29,39 @@ void UbicodersAutoPosModule::Run()
 	perf_begin(_loop_perf);
 	perf_count(_loop_interval_perf);
 
-	// PX4_INFO("i m here 1");
+	if (!_ips_sub.updated()){
+		perf_end(_loop_perf);
+		return;
+	}
 
-	//  publish some data
-	orb_test_s data{};
-	data.val = 123456789;
-	data.timestamp = hrt_absolute_time();
-	_orb_test_pub.publish(data);
+	_ips_sub.copy(&_ips);
+
+
+
+
+	// publish msg
+	_auto_ctrl_sp.roll = 0.1;
+	_auto_ctrl_sp.pitch = 0.2;
+	_auto_ctrl_sp.yaw = 0.3;
+	_auto_ctrl_sp.thrust = 0.4;
+	_auto_control_sp_pub.publish(_auto_ctrl_sp);
+
+
+	_debug_msg.pos_x = _ips.ips_x;
+	_debug_msg.pos_y = _ips.ips_y;
+	_debug_msg.pos_z = _ips.ips_z;
+	_debug_msg.vdist = _ips.vdist;
+	_ubi_debug_pub.publish(_debug_msg);
+
+
+		
+
+
+	// //  publish some data
+	// orb_test_s data{};
+	// data.val = 123456789;
+	// data.timestamp = hrt_absolute_time();
+	// _orb_test_pub.publish(data);
 
 	perf_end(_loop_perf);
 }
