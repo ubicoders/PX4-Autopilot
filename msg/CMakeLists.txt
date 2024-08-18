@@ -38,9 +38,8 @@ include(px4_list_make_absolute)
 
 set(msg_files
 	#=======================================
-	UbicodersMsgSubs.msg
-	UbicodersMsgIps.msg
-	
+	UbicodersMsgDebug.msg
+	UbicodersMsgIps.msg	
 	#=======================================
 	ActionRequest.msg
 	ActuatorArmed.msg
