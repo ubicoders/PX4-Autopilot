@@ -1,0 +1,6 @@
+menuconfig MODULES_ubicoders_auto_pos
+	bool "ubicoders_auto_pos"
+	default y
+	---help---
+		Enable support for ubicoders_auto_pos
+
