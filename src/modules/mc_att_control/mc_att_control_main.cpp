@@ -182,7 +182,10 @@ MulticopterAttitudeControl::generate_attitude_setpoint(const Quatf &q, float dt,
 	attitude_setpoint.timestamp = hrt_absolute_time();
 
 	_vehicle_attitude_setpoint_pub.publish(attitude_setpoint);
-	PX4_DEBUG("roll %d", attitude_setpoint.roll_body);
+	// PX4_INFO("roll %f", (double) attitude_setpoint.roll_body);
+	// PX4_INFO("pich %f", (double) attitude_setpoint.pitch_body);
+	// PX4_INFO("yaw %f", (double) attitude_setpoint.yaw_body);
+	// PX4_INFO("thrust %f", (double) attitude_setpoint.thrust_body[2]);
 
 	// update attitude controller setpoint immediately
 	_attitude_control.setAttitudeSetpoint(q_sp, attitude_setpoint.yaw_sp_move_rate);
@@ -291,6 +294,10 @@ MulticopterAttitudeControl::Run()
 			    !_vehicle_control_mode.flag_control_velocity_enabled &&
 			    !_vehicle_control_mode.flag_control_position_enabled) {
 
+				_input_rc_sub.copy(&_input_rc);
+				// PX4_INFO("mode ch 6 %d", _input_rc.values[5]);
+				if (_input_rc_sub.values[5] < 1500) _control_mode = 0; // manual rc input
+				else _control_mode = 1; // set_point_from Auto Pos Module
 				generate_attitude_setpoint(q, dt, _reset_yaw_sp);
 				attitude_setpoint_generated = true;
 

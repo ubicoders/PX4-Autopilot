@@ -54,7 +54,7 @@
 #include <uORB/topics/vehicle_rates_setpoint.h>
 #include <uORB/topics/vehicle_status.h>
 #include <lib/mathlib/math/filter/AlphaFilter.hpp>
-
+#include <uORB/topics/input_rc.h>
 #include <AttitudeControl.hpp>
 
 using namespace time_literals;
@@ -96,6 +96,7 @@ private:
 
 	uORB::SubscriptionInterval _parameter_update_sub{ORB_ID(parameter_update), 1_s};
 
+	uORB::Subscription _input_rc_sub{ORB_ID(input_rc)};
 	uORB::Subscription _autotune_attitude_control_status_sub{ORB_ID(autotune_attitude_control_status)};
 	uORB::Subscription _manual_control_setpoint_sub{ORB_ID(manual_control_setpoint)};
 	uORB::Subscription _vehicle_attitude_setpoint_sub{ORB_ID(vehicle_attitude_setpoint)};
@@ -108,8 +109,12 @@ private:
 	uORB::Publication<vehicle_rates_setpoint_s>     _vehicle_rates_setpoint_pub{ORB_ID(vehicle_rates_setpoint)};    /**< rate setpoint publication */
 	uORB::Publication<vehicle_attitude_setpoint_s>  _vehicle_attitude_setpoint_pub;
 
+
+	input_rc_s                      _input_rc {};
 	manual_control_setpoint_s       _manual_control_setpoint {};    /**< manual control setpoint */
 	vehicle_control_mode_s          _vehicle_control_mode {};       /**< vehicle control mode */
+
+	int _control_mode = 0;
 
 	perf_counter_t  _loop_perf;             /**< loop duration performance counter */
 
