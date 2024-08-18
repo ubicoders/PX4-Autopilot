@@ -17,6 +17,9 @@
 #include <uORB/topics/sensor_accel.h>
 #include <uORB/topics/vehicle_status.h>
 
+#include <uORB/topics/ubicoders_msg_ips.h>
+#include <uORB/topics/ubicoders_msg_auto_control_setpoint.h>
+
 using namespace time_literals;
 
 class UbicodersAutoPosModule : public ModuleBase<UbicodersAutoPosModule>, public ModuleParams, public px4::ScheduledWorkItem
@@ -44,12 +47,17 @@ private:
 
 	// Publications
 	uORB::Publication<orb_test_s> _orb_test_pub{ORB_ID(orb_test)};
+	uORB::Publication<orb_test_s> _auto_control_sp{ORB_ID(ubicoders_msg_auto_control_setpoint)};
 
 
 	// Subscriptions
+	
 	uORB::SubscriptionCallbackWorkItem _sensor_accel_sub{this, ORB_ID(sensor_accel)}; // subscription that schedules WorkItemExample when updated
 	uORB::SubscriptionInterval _parameter_update_sub{ORB_ID(parameter_update), 1_s};  // subscription limited to 1 Hz updates
 	uORB::Subscription _vehicle_status_sub{ORB_ID(vehicle_status)};					  // regular subscription for additional data
+	uORB::Subscription _ips_sub{ORB_ID(ubicoders_msg_ips)};
+
+	ubicoders_msg_ips_s _ips {};
 
 	// Performance (perf) counters
 	perf_counter_t _loop_perf{perf_alloc(PC_ELAPSED, MODULE_NAME ": cycle")};
