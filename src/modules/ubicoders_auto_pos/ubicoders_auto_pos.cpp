@@ -18,6 +18,24 @@ bool UbicodersAutoPosModule::init()
 	return true;
 }
 
+void UbicodersAutoPosModule::error_integrator()
+{
+    for (int i = 0; i < 3; i++){
+        _pos_err_int[i] += _pos_err[i];
+        clamp(_pos_err_int[i], _pos_err_limit[i]);
+    }
+}
+
+void UbicodersAutoPosModule::clamp(float &val, float limit)
+{
+    if (val > limit){
+        val = limit;
+    }
+    if (val < -limit){
+        val = -limit;
+    }
+}
+
 void UbicodersAutoPosModule::Run()
 {
 	if (should_exit()) {
@@ -34,16 +52,41 @@ void UbicodersAutoPosModule::Run()
 		return;
 	}
 
+    // subs attitude
+    _vehicle_attitude_sub.copy(&_vehicle_attitude);
+    // Convert the quaternion to a rotation matrix
+    matrix::Dcmf rotm(_vehicle_attitude.q);
+
+
+    // subs ips
 	_ips_sub.copy(&_ips);
+
+    // calculate position error
+    _pos_err[0] = _pos[0] - _ips.ips_x;
+    _pos_err[1] = _pos[1] - _ips.ips_y;
+    _pos_err[2] = _pos[2] - _ips.ips_z;
+    error_integrator();
+
+    // calculate velo setpoint in global frame
+    _kp[0] = 0.1;
+    _vel_sp[0] = _kp[0] * _pos_err[0] + _ki[0] * _pos_err_int[0] ;
+    clamp(_vel_sp[0], 1);
+
+    _kp[1] = 0.1;
+    _vel_sp[1] = _kp[1] * _pos_err[1] + _ki[1] * _pos_err_int[1] ;
+    clamp(_vel_sp[1], 1);
+
+    matrix::Vector3f vel_xy_sp_global(_vel_sp[0], _vel_sp[1], 0);
+    matrix::Vector3f vel_xy_sp_body = rotm.transpose() * vel_xy_sp_global;
 
 
 
 
 	// publish msg
-	_auto_ctrl_sp.roll = 0.1;
-	_auto_ctrl_sp.pitch = 0.2;
-	_auto_ctrl_sp.yaw = 0.3;
-	_auto_ctrl_sp.thrust = 0.4;
+	_auto_ctrl_sp.roll = vel_xy_sp_body(0);
+	_auto_ctrl_sp.pitch = vel_xy_sp_body(1);
+	_auto_ctrl_sp.yaw = 0;
+	_auto_ctrl_sp.thrust = 0;
 	_auto_control_sp_pub.publish(_auto_ctrl_sp);
 
 

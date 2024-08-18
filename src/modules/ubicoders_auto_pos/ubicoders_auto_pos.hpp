@@ -5,7 +5,7 @@
 #include <px4_platform_common/module_params.h>
 #include <px4_platform_common/posix.h>
 #include <px4_platform_common/px4_work_queue/ScheduledWorkItem.hpp>
-
+#include <matrix/matrix/math.hpp>
 #include <drivers/drv_hrt.h>
 #include <lib/perf/perf_counter.h>
 
@@ -16,6 +16,7 @@
 #include <uORB/topics/parameter_update.h>
 #include <uORB/topics/sensor_accel.h>
 #include <uORB/topics/vehicle_status.h>
+#include <uORB/topics/vehicle_attitude.h>
 
 #include <uORB/topics/ubicoders_msg_ips.h>
 #include <uORB/topics/ubicoders_msg_debug.h>
@@ -43,6 +44,10 @@ public:
 
 	int print_status() override;
 
+    void error_integrator();
+
+    void clamp(float &val, float limit);
+
 private:
 	void Run() override;
 
@@ -53,7 +58,7 @@ private:
 	uORB::Publication<ubicoders_msg_debug_s> _ubi_debug_pub{ORB_ID(ubicoders_msg_debug)};
 
 	// Subscriptions
-	
+	uORB::SubscriptionCallbackWorkItem _vehicle_attitude_sub{this, ORB_ID(vehicle_attitude)};
 	uORB::SubscriptionCallbackWorkItem _sensor_accel_sub{this, ORB_ID(sensor_accel)}; // subscription that schedules WorkItemExample when updated
 	uORB::SubscriptionInterval _parameter_update_sub{ORB_ID(parameter_update), 1_s};  // subscription limited to 1 Hz updates
 	uORB::Subscription _vehicle_status_sub{ORB_ID(vehicle_status)};					  // regular subscription for additional data
@@ -62,9 +67,19 @@ private:
 	ubicoders_msg_ips_s _ips {};
 	ubicoders_msg_debug_s _debug_msg {};
 	ubicoders_msg_auto_control_setpoint_s _auto_ctrl_sp {};
-	double pos_x_sp = 0.0;
-	double pos_y_sp = 0.0;
-	double pos_z_sp = 0.0;
+    vehicle_attitude_s _vehicle_attitude {};
+	
+    
+    float _pos[3] = {0, 0, 0};
+    float _pos_err[3] = {0, 0, 0};
+    float _pos_err_int[3] = {0, 0, 0};
+    float _pos_err_limit[3] = {1, 1, 1};
+    float _kp[3] = {0, 0, 0};
+    float _ki[3] = {0, 0, 0};
+    float _kd[3] = {0, 0, 0};
+    float _vel_sp[3] = {0, 0, 0};
+
+
 
 
 	// Performance (perf) counters
