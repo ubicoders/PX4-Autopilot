@@ -296,7 +296,7 @@ MulticopterAttitudeControl::Run()
 
 				_input_rc_sub.copy(&_input_rc);
 				// PX4_INFO("mode ch 6 %d", _input_rc.values[5]);
-				if (_input_rc_sub.values[5] < 1500) _control_mode = 0; // manual rc input
+				if (_input_rc.values[5] < 1500) _control_mode = 0; // manual rc input
 				else _control_mode = 1; // set_point_from Auto Pos Module
 				generate_attitude_setpoint(q, dt, _reset_yaw_sp);
 				attitude_setpoint_generated = true;
