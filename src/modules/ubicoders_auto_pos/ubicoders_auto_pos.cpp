@@ -80,8 +80,6 @@ void UbicodersAutoPosModule::Run()
     matrix::Vector3f vel_xy_sp_body = rotm.transpose() * vel_xy_sp_global;
 
 
-
-
 	// publish msg
 	_auto_ctrl_sp.roll = vel_xy_sp_body(0);
 	_auto_ctrl_sp.pitch = vel_xy_sp_body(1);
