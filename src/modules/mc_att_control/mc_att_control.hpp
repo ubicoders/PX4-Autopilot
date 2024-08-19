@@ -53,9 +53,12 @@
 #include <uORB/topics/vehicle_local_position.h>
 #include <uORB/topics/vehicle_rates_setpoint.h>
 #include <uORB/topics/vehicle_status.h>
+#include <uORB/topics/ubicoders_msg_debug.h>
 #include <lib/mathlib/math/filter/AlphaFilter.hpp>
 #include <uORB/topics/input_rc.h>
 #include <AttitudeControl.hpp>
+#include <uORB/topics/ubicoders_msg_auto_control_setpoint.h>
+
 
 using namespace time_literals;
 
@@ -103,11 +106,17 @@ private:
 	uORB::Subscription _vehicle_control_mode_sub{ORB_ID(vehicle_control_mode)};
 	uORB::Subscription _vehicle_local_position_sub{ORB_ID(vehicle_local_position)};
 	uORB::Subscription _vehicle_status_sub{ORB_ID(vehicle_status)};
-
+	uORB::Subscription _ubi_auto_control_sp_sub{ORB_ID(ubicoders_msg_auto_control_setpoint)};
 	uORB::SubscriptionCallbackWorkItem _vehicle_attitude_sub{this, ORB_ID(vehicle_attitude)};
 
 	uORB::Publication<vehicle_rates_setpoint_s>     _vehicle_rates_setpoint_pub{ORB_ID(vehicle_rates_setpoint)};    /**< rate setpoint publication */
 	uORB::Publication<vehicle_attitude_setpoint_s>  _vehicle_attitude_setpoint_pub;
+	uORB::Publication<ubicoders_msg_debug_s> _ubi_debug_pub{ORB_ID(ubicoders_msg_debug)};
+
+
+	ubicoders_msg_debug_s _debug_msg {};
+	ubicoders_msg_auto_control_setpoint_s _auto_ctrl_sp {};
+
 
 	input_rc_s                      _input_rc {};
 	manual_control_setpoint_s       _manual_control_setpoint {};    /**< manual control setpoint */

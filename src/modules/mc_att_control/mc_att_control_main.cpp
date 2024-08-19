@@ -187,6 +187,13 @@ MulticopterAttitudeControl::generate_attitude_setpoint(const Quatf &q, float dt,
 	// PX4_INFO("yaw %f", (double) attitude_setpoint.yaw_body);
 	// PX4_INFO("thrust %f", (double) attitude_setpoint.thrust_body[2]);
 
+	_debug_msg.roll_sp = attitude_setpoint.roll_body;
+	_debug_msg.pitch_sp = attitude_setpoint.pitch_body;
+	_debug_msg.yaw_rate_sp = attitude_setpoint.yaw_sp_move_rate;
+	_debug_msg.throttle = attitude_setpoint.thrust_body[2];
+	_ubi_debug_pub.publish(_debug_msg);
+	
+
 	// update attitude controller setpoint immediately
 	_attitude_control.setAttitudeSetpoint(q_sp, attitude_setpoint.yaw_sp_move_rate);
 	_thrust_setpoint_body = Vector3f(attitude_setpoint.thrust_body);
