@@ -39,6 +39,7 @@ include(px4_list_make_absolute)
 set(msg_files
 	#=======================================
 	UbicodersMsgDebug.msg
+	UbicodersMsgAtt.msg
 	UbicodersMsgIps.msg	
 	UbicodersMsgAutoControlSetpoint.msg
 	#=======================================
