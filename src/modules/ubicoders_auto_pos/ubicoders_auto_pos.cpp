@@ -53,50 +53,59 @@ void UbicodersAutoPosModule::Run()
 	}
 
     // subs attitude
-    _vehicle_attitude_sub.copy(&_vehicle_attitude);
-    // Convert the quaternion to a rotation matrix
-    matrix::Dcmf rotm(_vehicle_attitude.q);
+	if (_vehicle_attitude_sub.update(&_vehicle_attitude)){
+		// _vehicle_attitude_sub.copy(&_vehicle_attitude);
+		// Convert the quaternion to a rotation matrix
+		matrix::Dcmf rotm(_vehicle_attitude.q);
+		matrix::Eulerf euler_angles(rotm);
+		_ubi_att.roll = euler_angles(0);
+		_ubi_att.pitch = euler_angles(1);
+		_ubi_att.yaw = euler_angles(2);
+		_ubi_att.qx = _vehicle_attitude.q[0];
+		_ubi_att.qy = _vehicle_attitude.q[1];
+		_ubi_att.qz = _vehicle_attitude.q[2];
+		_ubi_att.qw = _vehicle_attitude.q[3];
+		_ubi_att_pub.publish(_ubi_att);
+	
+
+		// subs ips
+		_ips_sub.copy(&_ips);
+
+		// calculate position error
+		_pos_err[0] = _pos[0] - _ips.ips_x;
+		_pos_err[1] = _pos[1] - _ips.ips_y;
+		_pos_err[2] = _pos[2] - _ips.ips_z;
+		error_integrator();
+
+		// calculate velo setpoint in global frame
+		_kp[0] = 0.1;
+		_vel_sp[0] = _kp[0] * _pos_err[0] + _ki[0] * _pos_err_int[0] ;
+		clamp(_vel_sp[0], 1);
+
+		_kp[1] = 0.1;
+		_vel_sp[1] = _kp[1] * _pos_err[1] + _ki[1] * _pos_err_int[1] ;
+		clamp(_vel_sp[1], 1);
+
+		matrix::Vector3f vel_xy_sp_global(_vel_sp[0], _vel_sp[1], 0);
+		matrix::Vector3f vel_xy_sp_body = rotm.transpose() * vel_xy_sp_global;
 
 
-    // subs ips
-	_ips_sub.copy(&_ips);
-
-    // calculate position error
-    _pos_err[0] = _pos[0] - _ips.ips_x;
-    _pos_err[1] = _pos[1] - _ips.ips_y;
-    _pos_err[2] = _pos[2] - _ips.ips_z;
-    error_integrator();
-
-    // calculate velo setpoint in global frame
-    _kp[0] = 0.1;
-    _vel_sp[0] = _kp[0] * _pos_err[0] + _ki[0] * _pos_err_int[0] ;
-    clamp(_vel_sp[0], 1);
-
-    _kp[1] = 0.1;
-    _vel_sp[1] = _kp[1] * _pos_err[1] + _ki[1] * _pos_err_int[1] ;
-    clamp(_vel_sp[1], 1);
-
-    matrix::Vector3f vel_xy_sp_global(_vel_sp[0], _vel_sp[1], 0);
-    matrix::Vector3f vel_xy_sp_body = rotm.transpose() * vel_xy_sp_global;
+		// publish msg
+		_auto_ctrl_sp.roll = vel_xy_sp_body(0);
+		_auto_ctrl_sp.pitch = vel_xy_sp_body(1);
+		_auto_ctrl_sp.yaw = 0;
+		_auto_ctrl_sp.thrust = 0;
+		_auto_control_sp_pub.publish(_auto_ctrl_sp);
 
 
-	// publish msg
-	_auto_ctrl_sp.roll = vel_xy_sp_body(0);
-	_auto_ctrl_sp.pitch = vel_xy_sp_body(1);
-	_auto_ctrl_sp.yaw = 0;
-	_auto_ctrl_sp.thrust = 0;
-	_auto_control_sp_pub.publish(_auto_ctrl_sp);
+		_debug_msg.pos_x = _ips.ips_x;
+		_debug_msg.pos_y = _ips.ips_y;
+		_debug_msg.pos_z = _ips.ips_z;
+		_debug_msg.vdist = _ips.vdist;
+		_ubi_debug_pub.publish(_debug_msg);
 
-
-	_debug_msg.pos_x = _ips.ips_x;
-	_debug_msg.pos_y = _ips.ips_y;
-	_debug_msg.pos_z = _ips.ips_z;
-	_debug_msg.vdist = _ips.vdist;
-	_ubi_debug_pub.publish(_debug_msg);
-
-
-		
-
+			
+	}
 
 	// //  publish some data
 	// orb_test_s data{};

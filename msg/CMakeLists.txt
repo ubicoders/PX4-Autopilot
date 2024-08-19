@@ -41,6 +41,7 @@ set(msg_files
 	UbicodersMsgDebug.msg
 	UbicodersMsgAtt.msg
 	UbicodersMsgIps.msg	
+	UbicodersMsgAtt.msg
 	UbicodersMsgAutoControlSetpoint.msg
 	#=======================================
 	ActionRequest.msg

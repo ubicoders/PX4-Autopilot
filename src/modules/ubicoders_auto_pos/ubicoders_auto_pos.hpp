@@ -20,6 +20,7 @@
 
 #include <uORB/topics/ubicoders_msg_ips.h>
 #include <uORB/topics/ubicoders_msg_debug.h>
+#include <uORB/topics/ubicoders_msg_att.h>
 #include <uORB/topics/ubicoders_msg_auto_control_setpoint.h>
 
 
@@ -56,6 +57,8 @@ private:
 	uORB::Publication<orb_test_s> _orb_test_pub{ORB_ID(orb_test)};
 	uORB::Publication<ubicoders_msg_auto_control_setpoint_s> _auto_control_sp_pub{ORB_ID(ubicoders_msg_auto_control_setpoint)};
 	uORB::Publication<ubicoders_msg_debug_s> _ubi_debug_pub{ORB_ID(ubicoders_msg_debug)};
+	uORB::Publication<ubicoders_msg_att_s> _ubi_att_pub{ORB_ID(ubicoders_msg_att)};
+
 
 	// Subscriptions
 	uORB::SubscriptionCallbackWorkItem _vehicle_attitude_sub{this, ORB_ID(vehicle_attitude)};
@@ -68,6 +71,7 @@ private:
 	ubicoders_msg_debug_s _debug_msg {};
 	ubicoders_msg_auto_control_setpoint_s _auto_ctrl_sp {};
     vehicle_attitude_s _vehicle_attitude {};
+	ubicoders_msg_att_s _ubi_att {};
 	
     
     float _pos[3] = {0, 0, 0};
