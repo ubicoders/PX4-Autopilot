@@ -55,9 +55,17 @@ publications:
 
 subscriptions:
 
+ # ==================================
+
   - topic: /fmu/in/ubicoders_msg_ips
     type: px4_msgs::msg::UbicodersMsgIps
-    
+
+  - topic: /fmu/in/ubicoders_msg_auto_control_setpoint
+    type: px4_msgs::msg::UbicodersMsgAutoControlSetpoint
+
+
+ # ==================================
+
   - topic: /fmu/in/offboard_control_mode
     type: px4_msgs::msg::OffboardControlMode
 
