@@ -67,11 +67,12 @@ private:
 	uORB::Subscription _vehicle_status_sub{ORB_ID(vehicle_status)};					  // regular subscription for additional data
 	uORB::Subscription _ips_sub{ORB_ID(ubicoders_msg_ips)};
 
+	ubicoders_msg_att_s _ubi_att {};
 	ubicoders_msg_ips_s _ips {};
 	ubicoders_msg_debug_s _debug_msg {};
 	ubicoders_msg_auto_control_setpoint_s _auto_ctrl_sp {};
     vehicle_attitude_s _vehicle_attitude {};
-	ubicoders_msg_att_s _ubi_att {};
+	
 	
     
     float _pos[3] = {0, 0, 0};
