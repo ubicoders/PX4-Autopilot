@@ -56,12 +56,14 @@ void UbicodersAutoPosModule::Run()
 	
 	if (_vehicle_attitude_sub.update(&_vehicle_attitude)){
 		// _vehicle_attitude_sub.copy(&_vehicle_attitude);
-		// Convert the quaternion to a rotation matrix
-		// matrix::Dcmf rotm(_vehicle_attitude.q);
-		// matrix::Eulerf euler_angles(rotm);
-		// _ubi_att.roll = euler_angles(0);
-		// _ubi_att.pitch = euler_angles(1);
-		// _ubi_att.yaw = euler_angles(2);
+		//Convert the quaternion to a rotation matrix
+		matrix::Dcmf rotm(_vehicle_attitude.q);
+		matrix::Eulerf euler_angles(rotm);
+		
+		_ubi_att.roll = euler_angles(0);
+		_ubi_att.pitch = euler_angles(1);
+		_ubi_att.yaw = euler_angles(2);
+
 		_ubi_att.qx = _vehicle_attitude.q[0];
 		_ubi_att.qy = _vehicle_attitude.q[1];
 		_ubi_att.qz = _vehicle_attitude.q[2];
