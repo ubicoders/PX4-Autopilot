@@ -11,14 +11,20 @@ no firmware changes. The companion just speaks MAVLink over `/dev/ttyACM0`.
 
 ---
 
-## Legend — three kinds of thing
+## Legend & conventions
 
-| In the diagrams | Is a… | Lives on |
+odom.md's diagrams use **four** of the seven shared node *kinds* — **module**, **uORB topic**,
+**MAVLink message**, and **external** (it has no *instances*, *functions*, or *gates*; those
+appear in [offboard.md](offboard.md) and [commander.md](commander.md)). The full legend,
+vocabulary (uORB, FRD/RDF, EV, nav_state, heartbeat…), and how these three docs relate live in
+one place: **[commander.md → Conventions](commander.md#conventions-legend-vocabulary-and-the-three-docs)**.
+
+| In the diagrams | Kind | What it is — *example* |
 |---|---|---|
-| `┌─ name ─┐` **boxed** / blue node | **PX4 module** (a task that subscribes topics, publishes topics) | inside PX4 |
-| `uORB: topic` / yellow rounded node | **uORB topic** (PX4's internal in-RAM pub/sub bus) | inside PX4 |
-| `MAVLink #NNN` / green node | **MAVLink message** (numbered, on the serial wire) | Rust ⇄ PX4 wire |
-| grey node | companion app, the RC pilot, or the motors | outside the flow |
+| `┌─ name ─┐` **boxed** / blue node | **MODULE** | a PX4 task (own `run()`) — *`mavlink_receiver`, `ekf2`, `mc_pos_control`* |
+| `uORB: topic` / yellow rounded node | **uORB TOPIC** | in-RAM pub/sub **between modules** — *`vehicle_visual_odometry`, `trajectory_setpoint`* |
+| `MAVLink #NNN` / green node | **MAVLINK MESSAGE** | numbered message on the serial **wire** — *`#331 ODOMETRY`, `#84 SET_POSITION_TARGET`* |
+| grey node | **EXTERNAL** | companion app, the RC pilot, or the motors (the endpoints) |
 
 Three things flow: **STATE** (where the vehicle is), **SETPOINT** (where it should
 go), and **READBACK** (what PX4 reports so the companion can see the error).

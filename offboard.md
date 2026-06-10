@@ -58,31 +58,38 @@ stale. Miss either gate and OFFBOARD does not engage (or, in flight, it drops to
 ```mermaid
 flowchart TB
   classDef mod  fill:#1f6feb,color:#ffffff,stroke:#0b3d91,stroke-width:1px;
+  classDef fn   fill:#eee6ff,color:#24292f,stroke:#8250df,stroke-width:1px;
   classDef orb  fill:#fff8c5,color:#24292f,stroke:#bf8700,stroke-width:1px;
-  classDef ext  fill:#eaeef2,color:#24292f,stroke:#6e7781,stroke-width:1px;
+  classDef st   fill:#eef1f4,color:#24292f,stroke:#6e7781,stroke-width:1px;
   classDef gate fill:#ffe3e3,color:#24292f,stroke:#d1242f,stroke-width:1px;
+  classDef ext  fill:#eaeef2,color:#24292f,stroke:#6e7781,stroke-width:1px;
 
-  %% Gate 1 - request
-  RC["RC ch7 / GCS DO_SET_MODE"]:::ext --> RCU["rc_update → manual_control"]:::mod
-  RCU --> AR(["action_request<br/>ACTION_SWITCH_MODE → OFFBOARD"]):::orb
-  AR --> EAR["Commander::executeActionRequest()<br/>Commander.cpp:1723"]:::mod
-  EAR --> CHG["UserModeIntention::change(OFFBOARD)<br/>UserModeIntention.cpp:44"]:::mod
+  %% Gate 1 - request   (blue=module, lavender=function, yellow=topic)
+  RC["RC ch7 / GCS DO_SET_MODE"]:::ext --> RCU["rc_update → manual_control<br/>MODULES"]:::mod
+  RCU --> AR(["action_request — TOPIC<br/>ACTION_SWITCH_MODE → OFFBOARD"]):::orb
+  AR --> EAR[["Commander::executeActionRequest() — fn<br/>Commander.cpp:1723"]]:::fn
+  EAR --> CHG[["UserModeIntention::change(OFFBOARD) — fn<br/>UserModeIntention.cpp:44"]]:::fn
 
-  %% Gate 2 - heartbeat
-  COMP["control_test — #84 @ ~20 Hz"]:::ext --> RXR["mavlink_receiver<br/>mavlink_receiver.cpp:1134"]:::mod
-  RXR --> OCM(["offboard_control_mode"]):::orb
-  OCM --> OC["OffboardChecks::checkAndReport()<br/>offboardCheck.cpp:44 (freshness)"]:::mod
-  OC --> FF(["failsafe_flags.offboard_control_signal_lost"]):::orb
-  FF --> MC["modeCheck.cpp:152<br/>clearCanRunBits(OFFBOARD)"]:::mod
+  %% Gate 2 - heartbeat   (grey cylinder=state/field)
+  COMP["control_test — #84 @ ~20 Hz"]:::ext --> RXR["mavlink_receiver — MODULE<br/>mavlink_receiver.cpp:1134"]:::mod
+  RXR --> OCM(["offboard_control_mode — TOPIC"]):::orb
+  OCM --> OC[["OffboardChecks::checkAndReport() — fn<br/>offboardCheck.cpp:44 (freshness)"]]:::fn
+  OC --> FF[("failsafe_flags.offboard_control_signal_lost — STATE")]:::st
+  FF --> MC[["ModeChecks::checkAndReport → clearCanRunBits(OFFBOARD) — fn<br/>modeCheck.cpp:152"]]:::fn
 
   %% the AND
-  MC --> CR{{"canRun(OFFBOARD)?<br/>UserModeIntention.cpp:59"}}:::gate
+  MC --> CR{{"canRun(OFFBOARD)? — GATE<br/>UserModeIntention.cpp:59"}}:::gate
   CHG --> CR
-  CR -- "no" --> REJ["printRejectMode()<br/>Commander.cpp:1726"]:::mod
-  CR -- "yes" --> NAV(["vehicle_status.nav_state = OFFBOARD<br/>Commander.cpp:2371"]):::orb
-  NAV --> VCM(["vehicle_control_mode<br/>flag_control_offboard_enabled<br/>control_mode.cpp:124"]):::orb
-  VCM --> POS["mc_pos_control"]:::mod
+  CR -- "no" --> REJ[["printRejectMode() — fn<br/>Commander.cpp:1726"]]:::fn
+  CR -- "yes" --> NAV[("vehicle_status.nav_state = OFFBOARD — STATE<br/>Commander.cpp:2371")]:::st
+  NAV --> VCM(["vehicle_control_mode — TOPIC<br/>flag_control_offboard_enabled<br/>control_mode.cpp:124"]):::orb
+  VCM --> POS["mc_pos_control — MODULE"]:::mod
 ```
+
+> **Legend** — blue = **module** · lavender `[[ ]]` = **function/method** · yellow `([ ])` =
+> **uORB topic** · grey cylinder `[( )]` = **state/field** · red = **decision/gate** · plain
+> grey = **external**. Full legend + vocabulary + how this relates to odom.md & commander.md:
+> [commander.md → Conventions](commander.md#conventions-legend-vocabulary-and-the-three-docs).
 
 ---
 
@@ -162,6 +169,11 @@ cycle N+1  : handleModeIntentionAndFailsafe → nav_state = OFFBOARD → updateC
 
 At the loop's tens-of-Hz rate this is sub-100 ms — invisible in flight, but it explains why
 the `nav_state` transition in a log trails the `action_request` by one tick.
+
+> **Note — this next diagram uses a *local* coloring, not the shared legend.** Here the colors
+> mark **data-dependency roles** within the cycle: green = *writes* shared state, red = *reads*
+> it, yellow = the shared **state/field** itself. (Elsewhere green/red/yellow mean
+> MAVLink/gate/topic — see [Conventions](commander.md#conventions-legend-vocabulary-and-the-three-docs).)
 
 ```mermaid
 flowchart LR

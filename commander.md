@@ -12,6 +12,111 @@ tree as [`file:line`](src/...#Lline).
 
 ---
 
+## Conventions: legend, vocabulary, and the three docs
+
+These conventions are shared by all three docs ([odom.md](odom.md), [offboard.md](offboard.md),
+**commander.md**). Whenever a diagram uses a color or shape, this is what it means.
+
+### Diagram legend — every node is one of seven *kinds*
+
+The distinction that matters most is **module vs instance vs function** — three different
+things that all live "inside PX4" and are easy to confuse:
+
+| Node (color · shape) | Kind | What it is in the code | How it talks to others | Example — *file · name* |
+|---|---|---|---|---|
+| **blue rectangle** | **MODULE** | a PX4 work-queue **task**: its own thread, one `run()`/`Run()`, registered via `ModuleBase` | **only via uORB topics** | `commander` — *Commander.cpp:1775 · `Commander::run`* ; also `mavlink_receiver`, `ekf2`, `mc_pos_control` |
+| **teal rectangle** | **INSTANCE** | a C++ **object a module owns** as a member (composition); **not** its own task — runs inside the owner's loop | **direct method calls** | `UserModeIntention` — *Commander.hpp:233 · member `_user_mode_intention`* ; also `HealthAndArmingChecks`, `Failsafe` |
+| **lavender subroutine** `[[ ]]` | **FUNCTION / METHOD** | one function or member-method call | called / returns | `executeActionRequest()` — *Commander.cpp:1651* ; `change()` — *UserModeIntention.cpp:44* |
+| **yellow stadium** `([ ])` | **uORB TOPIC** | an in-RAM pub/sub message (`*_s` struct on a named bus) **between modules** | published / subscribed | `offboard_control_mode` , `vehicle_status` , `trajectory_setpoint` |
+| **green hexagon** `{{ }}` | **MAVLINK MESSAGE** | a numbered message on the serial **wire** (companion ⇄ PX4) | sent / received | `#84 SET_POSITION_TARGET_LOCAL_NED` , `#331 ODOMETRY` |
+| **grey cylinder** `[( )]` | **STATE / FIELD** | a variable or struct field in RAM (**not** a topic) | read / written | `_user_intented_nav_state` , `failsafe_flags.offboard_control_signal_lost` , the can-run bitmask |
+| **red diamond** `{ }` | **DECISION / GATE** | a boolean test that branches the flow | true / false | `canRun(OFFBOARD)?` — *UserModeIntention.cpp:59* |
+| **white/grey rectangle** | **EXTERNAL** | something outside PX4's module graph | — | `control_test` (companion) , RC ch7 (pilot) , motors |
+
+The same eight kinds, rendered with their actual colors/shapes:
+
+```mermaid
+flowchart LR
+  classDef mod  fill:#1f6feb,color:#ffffff,stroke:#0b3d91,stroke-width:1px;
+  classDef inst fill:#b8e6df,color:#24292f,stroke:#137a6e,stroke-width:1px;
+  classDef fn   fill:#eee6ff,color:#24292f,stroke:#8250df,stroke-width:1px;
+  classDef orb  fill:#fff8c5,color:#24292f,stroke:#bf8700,stroke-width:1px;
+  classDef mav  fill:#dafbe1,color:#24292f,stroke:#1a7f37,stroke-width:1px;
+  classDef st   fill:#eef1f4,color:#24292f,stroke:#6e7781,stroke-width:1px;
+  classDef gate fill:#ffe3e3,color:#24292f,stroke:#d1242f,stroke-width:1px;
+  classDef ext  fill:#ffffff,color:#24292f,stroke:#6e7781,stroke-width:1px;
+
+  M["MODULE — task"]:::mod
+  I["INSTANCE — owned object"]:::inst
+  F[["FUNCTION() / method"]]:::fn
+  T(["uORB TOPIC"]):::orb
+  V{{"MAVLink #NNN"}}:::mav
+  S[("STATE / field")]:::st
+  G{"DECISION / gate"}:::gate
+  X["EXTERNAL actor"]:::ext
+```
+
+> **Why module ≠ instance ≠ function matters.** A **module** (`commander`) is scheduled
+> independently and exchanges only **uORB topics** with other modules. An **instance**
+> (`UserModeIntention`) has **no task of its own** — `commander` calls its methods inside
+> `Commander::run()` and they share memory by reference. A **function** is a single call within
+> that. So an arrow *between two modules* is a uORB publish; an arrow *between a module and its
+> instance* (or instance↔instance) is a plain C++ method call. That is exactly why these are
+> three separate docs: **odom.md** is modules+topics on the bus; **offboard.md** adds the
+> functions/state/gate of one decision; **commander.md** opens up the **instances inside one
+> module**.
+
+### Vocabulary
+
+| Term (· diagram shorthand) | Meaning |
+|---|---|
+| **module** | a PX4 work-queue task (own `run()`); inter-module comms = uORB only. |
+| **instance** | an object a module owns as a member; shares the owner's thread; comms = direct method calls. |
+| **owns / composition** | the module declares the instance as a member → controls its lifetime, holds it in its address space (the *composition root*, [Commander.hpp:219-236](src/modules/commander/Commander.hpp#L219)). |
+| **`const ref`** (`const Foo &bar`) | a member that is a **read-only reference** to state **owned elsewhere** — read but not modify, no copy. This is how `commander` shares `_vehicle_status` and `failsafe_flags` with its instances: e.g. `UserModeIntention` holds a `const vehicle_status_s &` only to read `isArmed()`. |
+| **`&handler` / interface seam** | passing a **pointer to an abstract base** (`ModeChangeHandler`) so an instance calls back into another without knowing its concrete type (`UserModeIntention` → `ModeManagement`). |
+| **uORB topic** | named in-RAM pub/sub channel **between modules**. |
+| **MAVLink `#NNN`** | a numbered message on the serial wire **between companion and PX4**. |
+| **nav_state** | the active flight mode (enum field of `vehicle_status`), e.g. `NAVIGATION_STATE_OFFBOARD`. |
+| **vehicle_control_mode** | commander's output of `flag_control_*` bits — *which controllers run*. |
+| **latched** | state written once and re-read every cycle (vs. continuously streamed). |
+| **gate** | a boolean precondition; OFFBOARD engages only on the **AND** of a *request* gate and a *heartbeat* gate (see [offboard.md](offboard.md)). |
+| **heartbeat** | the `offboard_control_mode` topic, regenerated by every `#84` and freshness-checked. |
+| **can-run / can-arm bitmask** | per-`nav_state` "is this mode allowed" bits produced by **HAC**; `canRun(x)` reads bit `x`. |
+| **failsafe_flags** | the struct **HAC** fills (e.g. `offboard_control_signal_lost`); the inputs to **FS**. |
+| **HAC · UMI · MM · FS** | diagram shorthand: **H**ealth**A**nd**A**rming**C**hecks · **U**ser**M**ode**I**ntention · **M**ode**M**anagement · **F**ail**S**afe. |
+| **EV / external vision** | (odom) the off-board pose+velocity fed to `ekf2` via `vehicle_visual_odometry`. |
+| **FRD / RDF** | (odom) axis conventions; the IPS world is RDF, the room frame is FRD. |
+
+### The three documents and how they relate
+
+They are three **zoom levels** on one system — the companion flying the vehicle through PX4:
+
+```mermaid
+flowchart LR
+  classDef d fill:#eef1f4,color:#24292f,stroke:#6e7781,stroke-width:1px;
+  O["odom.md — the DATA PATH (widest)"]:::d
+  F["offboard.md — one DECISION on it:<br/>enter / hold OFFBOARD"]:::d
+  C["commander.md — the MODULE<br/>behind that decision"]:::d
+  O -- "zoom into the mode logic" --> F
+  F -- "zoom out to the module" --> C
+  C -. "the module that rides the data path" .-> O
+```
+
+| Doc | Scope | Answers | Node kinds it uses | Start here if… |
+|---|---|---|---|---|
+| [odom.md](odom.md) | the whole **data path**, companion ⇄ PX4 ⇄ motors | *what travels where* | module · topic · MAVLink · external | you're new to the project |
+| [offboard.md](offboard.md) | one **decision**: how commander enters & holds OFFBOARD | *why is / isn't it in OFFBOARD* (two gates + per-cycle call stack) | **+ function · state · gate** | you're debugging mode / offboard |
+| **commander.md** | the **module** that makes that decision | *how commander is built* (`Commander`↔`UserModeIntention`) | **+ instance** | you're changing commander code |
+
+**Reading order** — new to the codebase: `odom → offboard → commander`; working *in*
+commander: `commander → offboard → odom`. The thread tying them together is the
+**`offboard_control_mode` heartbeat** and the **`nav_state`** it gates: odom produces the
+heartbeat from `#84`, offboard shows it gating the OFFBOARD decision, commander shows the
+instance (`UserModeIntention`) that latches the resulting mode.
+
+---
+
 ## 1. The shape: one task, one loop, many collaborators
 
 `Commander` is a single work-queue task and a parameter owner
@@ -57,28 +162,33 @@ the `_failsafe_flags` that `_health_and_arming_checks` produces; and so on.
 
 ## 2. The dependency wiring (who holds a reference to whom)
 
+Node kinds below (per the [Conventions legend](#conventions-legend-vocabulary-and-the-three-docs)):
+**blue** = the `commander` **module**, **teal** = an **instance** it owns, **grey cylinder** =
+**state**. Every edge is a plain C++ reference/call (not uORB — this is all *inside* one module).
+
 ```mermaid
 flowchart TB
-  classDef state fill:#fff8c5,color:#24292f,stroke:#bf8700,stroke-width:1px;
-  classDef coll  fill:#dafbe1,color:#24292f,stroke:#1a7f37,stroke-width:1px;
+  classDef mod  fill:#1f6feb,color:#ffffff,stroke:#0b3d91,stroke-width:1px;
+  classDef inst fill:#b8e6df,color:#24292f,stroke:#137a6e,stroke-width:1px;
+  classDef st   fill:#eef1f4,color:#24292f,stroke:#6e7781,stroke-width:1px;
 
-  subgraph CMD["Commander — ModuleBase task (owns everything below)"]
+  subgraph CMD["commander — MODULE / task · Commander::run (Commander.cpp:1775) · owns all below"]
     direction TB
-    VS(["_vehicle_status<br/>owned, published"]):::state
-    HAC["_health_and_arming_checks"]:::coll
-    FF(["failsafe_flags<br/>(owned by HAC)"]):::state
-    FS["_failsafe"]:::coll
-    MM["_mode_management"]:::coll
-    UMI["_user_mode_intention"]:::coll
-    HP["_home_position"]:::coll
-    FD["_failure_detector"]:::coll
+    VS[("_vehicle_status — STATE<br/>owned & published · Commander.hpp:219")]:::st
+    FF[("failsafe_flags — STATE<br/>owned by HAC · Commander.hpp:235")]:::st
+    HAC["HealthAndArmingChecks (HAC) — INSTANCE<br/>HealthAndArmingChecks.cpp:54"]:::inst
+    FS["Failsafe (FS) — INSTANCE<br/>failsafe/framework.h"]:::inst
+    MM["ModeManagement (MM) — INSTANCE<br/>ModeManagement.cpp"]:::inst
+    UMI["UserModeIntention (UMI) — INSTANCE<br/>UserModeIntention.cpp:44"]:::inst
+    HP["HomePosition — INSTANCE"]:::inst
+    FD["FailureDetector — INSTANCE"]:::inst
   end
 
   HAC -- "produces" --> FF
-  VS  -- "const ref" --> HAC
-  VS  -- "const ref" --> UMI
+  VS  -- "const ref (read-only)" --> HAC
+  VS  -- "const ref · isArmed()" --> UMI
   HAC -- "const ref · canRun()" --> UMI
-  UMI -- "&amp;handler (ModeChangeHandler)" --> MM
+  UMI -- "handler ptr (ModeChangeHandler)" --> MM
   FF  -- "const ref" --> FS
   FF  -- "const ref" --> HP
 ```
@@ -174,11 +284,11 @@ keeps taking effect until something changes the intent or the failsafe overrides
 
 ```mermaid
 sequenceDiagram
-    participant REQ as action_request / DO_SET_MODE
-    participant CMD as Commander
-    participant UMI as UserModeIntention
-    participant HAC as HealthAndArmingChecks
-    participant MM as ModeManagement
+    participant REQ as action_request (topic) / DO_SET_MODE (MAVLink)
+    participant CMD as Commander (module)
+    participant UMI as UserModeIntention (instance)
+    participant HAC as HealthAndArmingChecks (instance)
+    participant MM as ModeManagement (instance)
 
     REQ->>CMD: request mode X
     CMD->>UMI: change(X)                         (Commander.cpp:1725)
