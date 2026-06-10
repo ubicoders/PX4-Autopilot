@@ -86,7 +86,7 @@ flowchart TB
 
 ---
 
-## The call stack — one `Commander::run()` cycle
+## The call stack: one `Commander::run()` cycle
 
 The flowchart above is *dataflow*. This is the **call hierarchy**: everything below happens
 inside a single iteration of the commander work-queue task `Commander::run()`
@@ -277,7 +277,7 @@ surfaced to the GCS by `printRejectMode` ([Commander.cpp:2620](src/modules/comma
 
 ---
 
-### 1.4 The request is one-shot — the *state* is latched in commander
+### 1.4 The request is one-shot; the state is latched in commander
 
 `manual_control` fires the `action_request` **only on the switch edge**, not continuously.
 A per-switch block runs only when a new `manual_control_switches` sample arrives *and* its
