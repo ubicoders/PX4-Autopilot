@@ -330,18 +330,99 @@ externally-registered (ROS2 / mode-executor) modes.
 
 ---
 
-## 5. The other collaborators in one line each
+## 5. The collaborators — what each does, with example behavior
 
-| Collaborator | File | Responsibility |
-|---|---|---|
-| **HealthAndArmingChecks** | `HealthAndArmingChecks/` | runs a fixed array of `*Check` objects each cycle → fills `failsafe_flags` and the **can-run / can-arm** bitmasks. Owns the `failsafe_flags` everyone else reads. ([HealthAndArmingChecks.cpp:54](src/modules/commander/HealthAndArmingChecks/HealthAndArmingChecks.cpp#L54)) |
-| **Failsafe** | `failsafe/` | state machine mapping `failsafe_flags` → a failsafe **Action**; `selectedAction()` ([framework.h:152](src/modules/commander/failsafe/framework.h#L152)) + `modeFromAction()` ([framework.h:154](src/modules/commander/failsafe/framework.h#L154)) override `nav_state` when needed. |
-| **ModeManagement** | `ModeManagement.*` | external/replacement modes, mode executors, and the **valid / settable** nav-state masks; implements `ModeChangeHandler`. `getNavStateReplacementIfValid` ([:158](src/modules/commander/ModeManagement.hpp#L158)), `updateControlMode` ([:160](src/modules/commander/ModeManagement.hpp#L160)). |
-| **UserModeIntention** | `UserModeIntention.*` | the latched user-intended mode + the change-allowed policy (§4). |
-| **FailureDetector** | `failure_detector/` | detects in-air failures (attitude/△, ESC, …) → feeds a check. |
-| **HomePosition** | `HomePosition.*` | establishes/holds the home position; reads `failsafe_flags`. |
-| **Safety / WorkerThread / MulticopterThrowLaunch** | `Safety.*`, `worker_thread.*`, `MulticopterThrowLaunch/` | safety-button state, async slow work (calibration), throw-launch detection. |
-| **ModeUtil** (free functions) | `ModeUtil/` | `getVehicleControlMode` ([control_mode.cpp](src/modules/commander/ModeUtil/control_mode.cpp)) + `mode_requirements` ([mode_requirements.cpp](src/modules/commander/ModeUtil/mode_requirements.cpp)) — pure mappings used by §6. |
+Two members below are **STATE** (grey cylinders in the diagrams), the rest are **INSTANCES**
+(teal). Ordered by how central they are to the arming/mode decision.
+
+**`_vehicle_status`** — STATE, owned & published · [Commander.hpp:219](src/modules/commander/Commander.hpp#L219).
+The single authoritative struct: `arming_state`, **`nav_state`** (active mode), `failsafe`,
+`vehicle_type`, and the valid/settable-mode masks. It *is* commander's headline output — every
+other module reads it to answer *"am I armed? which mode? in failsafe?"*
+**Example:** `mavlink_receiver` only forwards `trajectory_setpoint` once
+`nav_state == NAVIGATION_STATE_OFFBOARD` (the offboard.md story); the mc_* controllers gate on it too.
+
+**`_failsafe_flags`** — STATE, a `const&` into HAC · [Commander.hpp:235](src/modules/commander/Commander.hpp#L235).
+The "what's wrong right now" bitfield HAC fills and `Failsafe` / `HomePosition` read:
+`offboard_control_signal_lost`, `manual_control_signal_lost`, `gps_position_invalid`,
+`battery_warning`, `local_position_invalid`, … **Example:** offboard.md's entire decision turns
+on one bit here — `offboard_control_signal_lost`.
+
+**HealthAndArmingChecks (HAC)** — `_health_and_arming_checks` · [HealthAndArmingChecks/](src/modules/commander/HealthAndArmingChecks).
+Runs a fixed array of ~30 `*Check` objects **every cycle** and produces (a) the `failsafe_flags`
+above and (b) per-`nav_state` **can-run / can-arm** bitmasks.
+**Example:** gyro not calibrated or EKF not converged → that check clears the can-**arm** bits →
+commander refuses to arm and the GCS shows the reason; offboard heartbeat stale → OFFBOARD's
+can-**run** bit is cleared (gate ② in offboard.md). ([HealthAndArmingChecks.cpp:54](src/modules/commander/HealthAndArmingChecks/HealthAndArmingChecks.cpp#L54))
+
+**Failsafe (FS)** — `_failsafe` · [failsafe/](src/modules/commander/failsafe).
+A state machine mapping the active `failsafe_flags` to one **Action**, escalating by severity
+([framework.h:52](src/modules/commander/failsafe/framework.h#L52)): `Warn` → `Fallback*` →
+`Hold` → `RTL` → `Land` → `Descend` → `Disarm` → `Terminate` ("actions further down take
+precedence"). Its choice can **override** the user's `nav_state` via `modeFromAction()`; a
+`ClearCondition` decides when it releases (when the condition clears, or only after a mode
+switch / disarm). **Example:** RC link drops in flight → `manual_control_signal_lost` → FS picks
+RTL (per `NAV_RCL_ACT`); the offboard heartbeat dies → FS picks the configured offboard-loss
+action (Hold/Land/RTL); critical battery → Land/Descend.
+
+**FailureDetector** — `_failure_detector` · [failure_detector/](src/modules/commander/failure_detector).
+Watches vehicle state for **mechanical / attitude failures** and raises
+`failure_detector_status` flags — `roll`, `pitch` (attitude past `FD_FAIL_R` / `FD_FAIL_P`° for
+`FD_FAIL_*_TTRI`), `alt`, `ext` (external trigger system), `arm_escs`, `battery`,
+`imbalanced_prop`, `motor` (ESC telemetry timeout / under-current) — which feed a HAC check →
+Failsafe. **Example:** the airframe flips past `FD_FAIL_P°` for the trigger time → `pitch` flag
+→ Failsafe `Terminate`/`Disarm` cuts the motors; an ESC stops reporting current → `motor` flag
+marks a motor failure.
+
+**UserModeIntention (UMI)** — `_user_mode_intention` · [UserModeIntention.*](src/modules/commander/UserModeIntention.cpp).
+The **latched user-intended mode** + change-allowed policy (full detail in §4).
+**Example:** pilot flips ch7 → OFFBOARD is latched; a transient heartbeat loss makes Failsafe
+override the *published* `nav_state`, but the intention stays OFFBOARD, so it re-engages
+automatically when the heartbeat returns — no re-toggle needed.
+
+**ModeManagement (MM)** — `_mode_management` · [ModeManagement.*](src/modules/commander/ModeManagement.cpp).
+Manages **externally-registered modes** (ROS2 / PX4-ROS "external" + "replacement" modes) and
+**mode executors**, and computes the **valid / settable** nav-state masks; it is the concrete
+`ModeChangeHandler` UMI calls back into. **Example:** a ROS2 app registers a custom "Site
+Inspection" mode → it becomes a selectable flight mode; `getNavStateReplacementIfValid`
+([:158](src/modules/commander/ModeManagement.hpp#L158)) maps a replaced internal slot to it;
+`getModeStatus` fills `valid_nav_states_mask` / `can_set_nav_states_mask` so QGC only offers
+modes that currently exist.
+
+**HomePosition** — `_home_position` · [HomePosition.*](src/modules/commander/HomePosition.cpp).
+Establishes and maintains the **home position** — the RTL/return target and altitude reference.
+Set automatically on arming when a valid global position exists, settable manually, and re-set
+if altitude drifts > 1 m; gated by `COM_HOME_EN` / `COM_HOME_IN_AIR`. **Example:** arm in the
+yard → home latches to that lat/lon/alt and a later RTL flies back there; with `COM_HOME_IN_AIR`
+home can be (re)established after a takeoff that armed without GPS.
+([HomePosition.hpp:66](src/modules/commander/HomePosition.hpp#L66))
+
+**Safety** — `_safety` · [Safety.*](src/modules/commander/Safety.cpp).
+Tracks the physical **safety button/switch**: present (`_button_available`), off
+(`_safety_off`), or disabled (`_safety_disabled`). **Example:** with a safety button wired the
+vehicle stays *prearmed* (motors locked) until you press it → `safety_off` → arming is allowed;
+boards with no button (or the circuit-breaker set) report safety disabled and skip the step.
+
+**WorkerThread** — `_worker_thread` · [worker_thread.*](src/modules/commander/worker_thread.cpp).
+Runs slow / blocking jobs **off** the ~50–100 Hz commander loop so it never stalls:
+`GyroCalibration`, `MagCalibration`, `AccelCalibration` (+Quick), `LevelCalibration`,
+`AirspeedCalibration`, `BaroCalibration`, `ESCCalibration`, `RCTrimCalibration`,
+`ParamLoadDefault`, `ParamSaveDefault` ([worker_thread.hpp:51](src/modules/commander/worker_thread.hpp#L51)).
+**Example:** operator triggers accel calibration from QGC → commander hands the multi-second
+routine to the worker thread and keeps publishing `vehicle_status` the whole time.
+
+**MulticopterThrowLaunch** — `_multicopter_throw_launch` · [MulticopterThrowLaunch/](src/modules/commander/MulticopterThrowLaunch).
+Implements **throw-to-launch**: arm, then physically toss the multicopter to spin it up in the
+air. Until the throw is detected it holds motors in **lockdown**
+([Commander.cpp:1921](src/modules/commander/Commander.cpp#L1921)); a state machine
+(DISABLED→ARMED→…→FLYING) detects the throw by speed. Params `COM_THROW_EN`, `COM_THROW_SPEED`.
+**Example:** enable `COM_THROW_EN`, arm, throw the drone upward → it detects launch (speed >
+`COM_THROW_SPEED`) and starts the motors mid-air instead of on the ground.
+
+**ModeUtil** — free functions, *not* an instance · [ModeUtil/](src/modules/commander/ModeUtil).
+Pure, stateless mappings used during publish: `getVehicleControlMode` (nav_state +
+offboard_control_mode → `flag_control_*`) and `mode_requirements` (which `failsafe_flags` each
+mode needs). Just translation, no state.
 
 ---
 
