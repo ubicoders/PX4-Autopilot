@@ -277,6 +277,53 @@ surfaced to the GCS by `printRejectMode` ([Commander.cpp:2620](src/modules/comma
 
 ---
 
+### 1.4 The request is one-shot — the *state* is latched in commander
+
+`manual_control` fires the `action_request` **only on the switch edge**, not continuously.
+A per-switch block runs only when a new `manual_control_switches` sample arrives *and* its
+value differs from the remembered previous one
+([ManualControl.cpp:221](src/modules/manual_control/ManualControl.cpp#L221)); the sample is
+then stored as the new baseline ([ManualControl.cpp:298](src/modules/manual_control/ManualControl.cpp#L298)):
+
+```cpp
+// src/modules/manual_control/ManualControl.cpp:221, :298
+if (switches.offboard_switch != _previous_switches.offboard_switch) { ... sendActionRequest(...); }
+...
+_previous_switches = switches;   // ← edge baseline; holding ch7 up sends nothing more
+```
+
+So holding ch7 up emits exactly **one** `action_request`. What keeps you in OFFBOARD
+afterwards is not a stream of requests — it is the **latched intention** inside commander:
+
+```cpp
+// src/modules/commander/UserModeIntention.cpp:76  (inside change())
+_user_intented_nav_state = user_intended_nav_state;   // OFFBOARD, stored as a plain member
+// src/modules/commander/UserModeIntention.hpp:100
+uint8_t _user_intented_nav_state{...};                // ← the saved state, persists across cycles
+```
+
+Every cycle `handleModeIntentionAndFailsafe()` reads it back via `_user_mode_intention.get()`
+and (re)derives the published `nav_state` from it
+([Commander.cpp:2371](src/modules/commander/Commander.cpp#L2371)).
+
+This is the deliberate asymmetry between the two gates:
+
+| | Mode REQUEST (gate ①) | Heartbeat (gate ②) |
+|---|---|---|
+| Cadence | **one-shot**, on the ch7 edge | **continuous**, every `#84` |
+| Stored as | latched `_user_intented_nav_state` (commander) | a freshness *timestamp*, re-checked each cycle |
+| If it stops | nothing changes — intention stays OFFBOARD | goes stale → failsafe overrides `nav_state` |
+
+Because the intention is latched, a *transient* heartbeat loss that later recovers
+re-engages OFFBOARD **without** re-toggling ch7: `offboardControlCheck()` forces a re-check
+when a fresh `#84` returns ([Commander.cpp:2985](src/modules/commander/Commander.cpp#L2985)),
+`canRun(OFFBOARD)` passes again, and `handleModeIntentionAndFailsafe()` re-applies the still-
+latched OFFBOARD intent. (Exception: certain failsafe *actions* overwrite the intention at
+[Commander.cpp:2363](src/modules/commander/Commander.cpp#L2363) — then it will not
+auto-return and the pilot must re-request.)
+
+---
+
 ## Part ② — The PRECONDITION: the `offboard_control_mode` heartbeat
 
 ### 2.1 `#84` becomes `offboard_control_mode` (in mavlink_receiver)
