@@ -1,0 +1,36 @@
+services:
+  px4:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: px4-autopilot-dev:v1.17.0
+    container_name: px4-autopilot
+    working_dir: /workspace/PX4-Autopilot
+
+    # Full device access — required to reach host serial/USB devices under
+    # /dev for flashing boards, HITL, etc.
+    privileged: true
+
+    # Keep an interactive shell available: `docker compose run px4 bash`
+    # or `docker compose up -d` then `docker compose exec px4 bash`.
+    tty: true
+    stdin_open: true
+
+    # SITL / MAVLink UDP ports exposed by the base image.
+    ports:
+      - "14556:14556/udp"
+      - "14557:14557/udp"
+
+    volumes:
+      # Host devices (serial ports, USB) for flashing & hardware-in-the-loop.
+      - /dev/:/dev/
+
+      # The entire PX4-Autopilot tree, mounted live (read/write).
+      - ./:/workspace/PX4-Autopilot:rw
+
+      # ...except the docker-related files: overlay the host's /dev/null on
+      # each so they appear empty inside the container and the live source
+      # mount above is not polluted by container-only tooling.
+      - /dev/null:/workspace/PX4-Autopilot/Dockerfile:ro
+      - /dev/null:/workspace/PX4-Autopilot/docker-compose.yml:ro
+      - /dev/null:/workspace/PX4-Autopilot/.dockerignore:ro
