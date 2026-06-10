@@ -1,62 +1,100 @@
-# PX4 Drone Autopilot
+# PX4 parameter setup — IPS → PX4 offboard control
 
-[![Releases](https://img.shields.io/github/release/PX4/PX4-Autopilot.svg)](https://github.com/PX4/PX4-Autopilot/releases) [![DOI](https://zenodo.org/badge/22634/PX4/PX4-Autopilot.svg)](https://zenodo.org/badge/latestdoi/22634/PX4/PX4-Autopilot)
+This fork (`ubicoders/PX4-Autopilot`, `ubicoders_v1.17.0`, FMUv5) is used **params-only**
+for the IPS → PX4 integration — no firmware source changes. This README documents the
+**flight-mode switch** (RC ch7 toggles a manual/default mode ⇄ Jetson-driven offboard) and the
+**offboard parameters**.
 
-[![Build Targets](https://github.com/PX4/PX4-Autopilot/actions/workflows/build_all_targets.yml/badge.svg?branch=main)](https://github.com/PX4/PX4-Autopilot/actions/workflows/build_all_targets.yml) [![SITL Tests](https://github.com/PX4/PX4-Autopilot/workflows/SITL%20Tests/badge.svg?branch=master)](https://github.com/PX4/PX4-Autopilot/actions?query=workflow%3A%22SITL+Tests%22)
+- EKF2 external-vision params (so PX4 *consumes* the IPS position) live in
+  [`ips_phase1/`](ips_phase1/) — apply those too; they are a prerequisite (see bottom).
+- Companion app & plan: [`../ips_onboard_px4`](../ips_onboard_px4), [`../tasks/phase1.md`](../tasks/phase1.md).
 
-[![Discord Shield](https://discordapp.com/api/guilds/1022170275984457759/widget.png?style=shield)](https://discord.gg/dronecode)
+---
 
-This repository holds the [PX4](http://px4.io) flight control solution for drones, with the main applications located in the [src/modules](https://github.com/PX4/PX4-Autopilot/tree/main/src/modules) directory. It also contains the PX4 Drone Middleware Platform, which provides drivers and middleware to run drones.
+## 1. Flight-mode switch — RC ch7: default (manual) ⇄ offboard
 
-PX4 is highly portable, OS-independent and supports Linux, NuttX and MacOS out of the box.
+PX4 maps **one RC channel to six flight-mode "slots"**. A 2-position switch lands on
+**slot 1 (low)** and **slot 6 (high)**; a 3-position switch adds a middle slot. Put your
+default/manual mode on slot 1 and Offboard on slot 6, on **channel 7**:
 
-* Official Website: http://px4.io (License: BSD 3-clause, [LICENSE](https://github.com/PX4/PX4-Autopilot/blob/main/LICENSE))
-* [Supported airframes](https://docs.px4.io/main/en/airframes/airframe_reference.html) ([portfolio](https://px4.io/ecosystem/commercial-systems/)):
-  * [Multicopters](https://docs.px4.io/main/en/frames_multicopter/)
-  * [Fixed wing](https://docs.px4.io/main/en/frames_plane/)
-  * [VTOL](https://docs.px4.io/main/en/frames_vtol/)
-  * [Autogyro](https://docs.px4.io/main/en/frames_autogyro/)
-  * [Rover](https://docs.px4.io/main/en/frames_rover/)
-  * many more experimental types (Blimps, Boats, Submarines, High Altitude Balloons, Spacecraft, etc)
-* Releases: [Downloads](https://github.com/PX4/PX4-Autopilot/releases)
+| Param | Value | Meaning |
+|---|---|---|
+| `RC_MAP_FLTMODE` | `7` | ch7 is the flight-mode select channel (the 6-slot mechanism) |
+| `COM_FLTMODE1` | `8` | **slot 1 = switch LOW / resting = your default mode** → Stabilized (pilot flies) |
+| `COM_FLTMODE6` | `7` | **slot 6 = switch HIGH** → Offboard (the Jetson flies) |
+| `COM_FLTMODE2..5` | `-1` | unused slots (Unassigned) |
 
-## Releases
+**"Default mode"** = whatever slot the switch rests in when you power up / aren't commanding
+offboard, i.e. `COM_FLTMODE1`. Pick it from the mode-number table:
 
-Release notes and supporting information for PX4 releases can be found on the [Developer Guide](https://docs.px4.io/main/en/releases/).
+| # | Mode | Notes |
+|---|---|---|
+| 0 | Manual | direct (multicopter ≈ rate/acro) |
+| **8** | **Stabilized** | self-levelling, manual throttle — **safe manual default, needs no position estimate** |
+| 1 | Altitude | self-level + altitude hold |
+| 2 | Position | holds position — needs a valid estimate (your EV) |
+| **7** | **Offboard** | external setpoints from the Jetson |
 
-## Building a PX4 based drone, rover, boat or robot
+Use **8 (Stabilized)** for the manual slot if you want a fallback that works even before EV is
+fusing; use **2 (Position)** only once the IPS estimate is good.
 
-The [PX4 User Guide](https://docs.px4.io/main/en/) explains how to assemble [supported vehicles](https://docs.px4.io/main/en/airframes/airframe_reference.html) and fly drones with PX4. See the [forum and chat](https://docs.px4.io/main/en/#getting-help) if you need help!
+> Calibrate ch7 as a switch first: **QGC → Radio**, toggle the switch so PX4 registers the
+> channel. An unmapped channel does nothing. QGC → **Flight Modes** shows the slot assignment.
 
+## 2. Offboard parameters
 
-## Changing Code and Contributing
+| Param | Value | Default | Meaning |
+|---|---|---|---|
+| `COM_RC_IN_MODE` | `0` | 3 | `0` = RC only (you have a transmitter). Keep RC available so the ch7 switch works. |
+| `COM_OF_LOSS_T` | `1.0` | 1.0 | Max gap (s) with **no offboard setpoint** before failsafe. The companion streams at ~20 Hz, well under this — just never let the stream stall >1 s. |
+| `COM_OBL_RC_ACT` | `2` | 0 | Action if offboard is lost **and RC is available**: `2` = fall back to Stabilized (pilot takes over). |
+| `COM_RCL_EXCEPT` | `4` | 0 | Failsafe **exceptions** bitmask; **bit 2 = Offboard**. `4` = don't RC-loss-failsafe while in Offboard (let the Jetson keep flying if the RC link drops). *Safety choice — omit if you want RC loss to always failsafe.* |
+| `COM_ARM_WO_GPS` | `1` | 1 | Allow arming without GPS — required indoors. |
 
-This [Developer Guide](https://docs.px4.io/main/en/development/development.html) is for software developers who want to modify the flight stack and middleware (e.g. to add new flight modes), hardware integrators who want to support new flight controller boards and peripherals, and anyone who wants to get PX4 working on a new (unsupported) airframe/vehicle.
+## 3. Copy-paste (nsh / QGC MAVLink Console)
 
-Developers should read the [Guide for Contributions](https://docs.px4.io/main/en/contribute/).
-See the [forum and chat](https://docs.px4.io/main/en/#getting-help) if you need help!
+```sh
+# --- flight-mode switch: ch7 toggles default(manual) <-> offboard ---
+param set RC_MAP_FLTMODE 7
+param set COM_FLTMODE1 8        # LOW  / default -> Stabilized (pilot)
+param set COM_FLTMODE6 7        # HIGH           -> Offboard  (Jetson)
+param set COM_FLTMODE2 -1
+param set COM_FLTMODE3 -1
+param set COM_FLTMODE4 -1
+param set COM_FLTMODE5 -1
 
+# --- offboard behaviour ---
+param set COM_RC_IN_MODE 0      # RC available (drives the ch7 switch)
+param set COM_OF_LOSS_T 1.0     # offboard setpoint-loss timeout (s)
+param set COM_OBL_RC_ACT 2      # on offboard loss -> Stabilized
+param set COM_RCL_EXCEPT 4      # bit2=Offboard: keep flying if RC drops in offboard (optional)
+param set COM_ARM_WO_GPS 1      # arm without GPS (indoor)
 
-## Weekly Dev Call
+param save
+reboot
+```
 
-The PX4 Dev Team syncs up on a [weekly dev call](https://docs.px4.io/main/en/contribute/).
+(In QGC: **Parameters → Tools → Load from file** also works; mode params take effect without a
+reboot, but reboot anyway since the airframe/EV params below are reboot-required.)
 
-> **Note** The dev call is open to all interested developers (not just the core dev team). This is a great opportunity to meet the team and contribute to the ongoing development of the platform. It includes a QA session for newcomers. All regular calls are listed in the [Dronecode calendar](https://www.dronecode.org/calendar/).
+## 4. Engaging offboard — order of operations & gotchas
 
+1. **Companion streaming first.** The Jetson must already be sending
+   `SET_POSITION_TARGET_LOCAL_NED` at >2 Hz (the app does 20 Hz) **before** you flip ch7 to the
+   Offboard slot — otherwise PX4 **rejects** the switch and stays in the manual slot.
+2. Flip ch7 **HIGH** → Offboard engages (no companion set-mode command needed — the RC switch
+   does it). Flip **LOW** → back to Stabilized, pilot has control.
+3. **Arm** via RC stick gesture, an arm switch, or QGC.
 
-## Maintenance Team
+## 5. Prerequisites (without these, Offboard won't engage / stays NaN)
 
-See the latest list of maintainers on [MAINTAINERS](MAINTAINERS.md) file at the root of the project.
+- **EV fusion** — load [`ips_phase1/ips_phase1.params`](ips_phase1/ips_phase1.params)
+  (`EKF2_EV_CTRL=7`, …) so EKF2 actually consumes the IPS position into
+  `vehicle_local_position`. Without it EKF2 sits in `CONST_POS_MODE` and there is no position to
+  control. See [`ips_phase1/apply_params.md`](ips_phase1/apply_params.md).
+- **Controllers running** — select a multicopter airframe so `mc_pos_control` starts
+  (`rc.mc_apps`): e.g. `param set SYS_AUTOSTART 4001` (generic quad) + reboot. No airframe →
+  `mc_pos_control` never starts → `POSITION_TARGET_LOCAL_NED` (#85) stays NaN.
 
-For the latest stats on contributors please see the latest stats for the Dronecode ecosystem in our project dashboard under [LFX Insights](https://insights.lfx.linuxfoundation.org/foundation/dronecode). For information on how to update your profile and affiliations please see the following support link on how to [Complete Your LFX Profile](https://docs.linuxfoundation.org/lfx/my-profile/complete-your-lfx-profile). Dronecode publishes a yearly snapshot of contributions and achievements on its [website under the Reports section](https://dronecode.org).
-
-## Supported Hardware
-
-For the most up to date information, please visit [PX4 User Guide > Autopilot Hardware](https://docs.px4.io/main/en/flight_controller/).
-
-## Project Governance
-
-The PX4 Autopilot project including all of its trademarks is hosted under [Dronecode](https://www.dronecode.org/), part of the Linux Foundation.
-
-<a href="https://www.dronecode.org/" style="padding:20px" ><img src="https://dronecode.org/wp-content/uploads/sites/24/2020/08/dronecode_logo_default-1.png" alt="Dronecode Logo" width="110px"/></a>
-<div style="padding:10px">&nbsp;</div>
+Verify on the FC: flip ch7 and watch the mode change in QGC (or the HEARTBEAT `custom_mode`);
+`listener vehicle_local_position` should track the IPS once EV is fused.
