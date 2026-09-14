@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<mavlink>
+  <!--
+    Ubicoders example dialect.
+
+    PX4's development.xml (which pulls in common, standard and minimal) plus one custom
+    message used by the ubicoders example module. The file lives in the PX4 tree instead of
+    the mavlink submodule so it survives submodule updates; src/modules/mavlink/CMakeLists.txt
+    picks it up when a board sets CONFIG_MAVLINK_DIALECT="ubicoders_msgs".
+
+    Message IDs must not collide with anything in the included dialects (they currently
+    stop below 13000). 50100 is unused.
+  -->
+  <include>../mavlink/message_definitions/v1.0/development.xml</include>
+  <version>3</version>
+  <dialect>0</dialect>
+  <messages>
+    <message id="50100" name="UBICODERS_CUSTOM">
+      <description>Ubicoders example round-trip message. A companion sends odd_number; PX4 answers with even_number = odd_number + 1.</description>
+      <field type="int32_t" name="odd_number">Value sent to the autopilot. Published on the ubicoders_msg_subs uORB topic.</field>
+      <field type="int32_t" name="even_number">Value returned by the autopilot from the ubicoders_msg_pub uORB topic.</field>
+    </message>
+  </messages>
+</mavlink>

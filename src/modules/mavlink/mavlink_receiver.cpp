@@ -133,10 +133,33 @@ MavlinkReceiver::acknowledge(uint8_t sysid, uint8_t compid, uint16_t command, ui
 	_cmd_ack_pub.publish(command_ack);
 }
 
+#if defined(MAVLINK_MSG_ID_UBICODERS_CUSTOM)
+void
+MavlinkReceiver::handle_message_ubicoders_custom(mavlink_message_t *msg)
+{
+	// ubicoders example: hand the received number to the ubicoders module through uORB
+	mavlink_ubicoders_custom_t ubicoders_custom;
+	mavlink_msg_ubicoders_custom_decode(msg, &ubicoders_custom);
+
+	ubicoders_msg_subs_s ubicoders_msg_subs{};
+	ubicoders_msg_subs.timestamp = hrt_absolute_time();
+	ubicoders_msg_subs.odd_number_input = ubicoders_custom.odd_number;
+
+	_ubicoders_msg_subs_pub.publish(ubicoders_msg_subs);
+}
+#endif // MAVLINK_MSG_ID_UBICODERS_CUSTOM
+
 void
 MavlinkReceiver::handle_message(mavlink_message_t *msg)
 {
 	switch (msg->msgid) {
+#if defined(MAVLINK_MSG_ID_UBICODERS_CUSTOM)
+
+	case MAVLINK_MSG_ID_UBICODERS_CUSTOM:
+		handle_message_ubicoders_custom(msg);
+		break;
+#endif // MAVLINK_MSG_ID_UBICODERS_CUSTOM
+
 	case MAVLINK_MSG_ID_COMMAND_LONG:
 		handle_message_command_long(msg);
 		break;
