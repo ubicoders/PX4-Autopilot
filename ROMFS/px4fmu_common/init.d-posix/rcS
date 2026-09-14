@@ -372,4 +372,7 @@ fi
 . ${R}etc/init.d/rc.logging
 
 mavlink boot_complete
+
+# ubicoders example module
+ubicoders_simple_app start
 replay trystart

@@ -1,0 +1,5 @@
+menuconfig MODULES_UBICODERS
+	bool "ubicoders"
+	default n
+	---help---
+		Enable support for the ubicoders example module (ubicoders_simple_app)
