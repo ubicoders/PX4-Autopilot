@@ -109,7 +109,18 @@ publications:
     rate_limit: 20.
 
 # Create uORB::Publication
+  # ubicoders example
+  - topic: /fmu/out/ubicoders_msg_pub
+    type: px4_msgs::msg::UbicodersMsgPub
+
+  - topic: /fmu/out/ubicoders_msg_subs
+    type: px4_msgs::msg::UbicodersMsgSubs
+
 subscriptions:
+
+  # ubicoders example
+  - topic: /fmu/in/ubicoders_msg_subs
+    type: px4_msgs::msg::UbicodersMsgSubs
   - topic: /fmu/in/register_ext_component_request
     type: px4_msgs::msg::RegisterExtComponentRequest
 

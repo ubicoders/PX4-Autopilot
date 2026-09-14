@@ -221,6 +221,9 @@ set(msg_files
 	TuneControl.msg
 	UavcanParameterRequest.msg
 	UavcanParameterValue.msg
+	UbicodersMsgActOut.msg
+	UbicodersMsgPub.msg
+	UbicodersMsgSubs.msg
 	UlogStream.msg
 	UlogStreamAck.msg
 	VehicleAcceleration.msg
