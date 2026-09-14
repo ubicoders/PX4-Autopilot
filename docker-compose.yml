@@ -1,0 +1,39 @@
+# PX4 development container for this branch, built from Tools/setup/Dockerfile.
+#
+#   docker compose build                                  # build the image once (ubuntu 24.04 + PX4 toolchain)
+#   docker compose run --rm px4                           # interactive shell inside the container
+#   docker compose run --rm px4 make px4_sitl             # build SITL
+#   docker compose run --rm px4 make px4_fmu-v6x_default upload   # build firmware and flash over USB
+#
+# The container runs as your host UID/GID so everything it writes under the repo stays yours.
+# If your ids are not 1000:1000, run:  UID=$(id -u) GID=$(id -g) docker compose run --rm px4
+
+services:
+  px4:
+    build:
+      context: Tools/setup        # the Dockerfile COPYs ubuntu.sh and requirements.txt from here
+      dockerfile: Dockerfile
+    image: px4-dev:ubicoders-v1.17.0
+    user: "${UID:-1000}:${GID:-1000}"
+    group_add:
+      - "20"                      # dialout: /dev/ttyACM*, /dev/ttyUSB* (flight controller serial)
+      - "46"                      # plugdev: raw USB (dfu-util, bootloader)
+    working_dir: /src/PX4-Autopilot
+    volumes:
+      - .:/src/PX4-Autopilot
+      - /dev:/dev                 # host devices, including boards plugged in after start
+    device_cgroup_rules:          # allow the container to actually open those device nodes
+      - "c 166:* rmw"             # ttyACM (USB CDC, e.g. Pixhawk)
+      - "c 188:* rmw"             # ttyUSB (FTDI / CP210x adapters)
+      - "c 189:* rmw"             # raw USB bus
+    # privileged: true            # fallback if a device is still blocked
+    network_mode: host            # SITL MAVLink and DDS reach QGC / ROS 2 on the host directly
+    cap_add:
+      - SYS_PTRACE                # gdb inside the container
+    security_opt:
+      - seccomp=unconfined
+    environment:
+      HOME: /tmp                  # the host uid has no home directory in the image
+      CCACHE_DIR: /src/PX4-Autopilot/build/.ccache           # keep the compiler cache between runs
+    stdin_open: true
+    tty: true
