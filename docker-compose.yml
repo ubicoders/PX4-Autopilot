@@ -5,7 +5,9 @@
 #   docker compose run --rm px4 make px4_sitl             # build SITL
 #   docker compose run --rm px4 make px4_fmu-v6x_default upload   # build firmware and flash over USB
 #
-# The container runs as your host UID/GID so everything it writes under the repo stays yours.
+# Run these from the repo root. The repo is mounted at the SAME absolute path inside the container and the
+# container runs as your host UID/GID, so build/ output (including compile_commands.json) is directly usable
+# by VS Code on the host: .vscode/settings.json points IntelliSense at build/px4_sitl_default/compile_commands.json.
 # If your ids are not 1000:1000, run:  UID=$(id -u) GID=$(id -g) docker compose run --rm px4
 
 services:
@@ -18,9 +20,9 @@ services:
     group_add:
       - "20"                      # dialout: /dev/ttyACM*, /dev/ttyUSB* (flight controller serial)
       - "46"                      # plugdev: raw USB (dfu-util, bootloader)
-    working_dir: /src/PX4-Autopilot
+    working_dir: ${PWD}
     volumes:
-      - .:/src/PX4-Autopilot
+      - ${PWD}:${PWD}           # same path inside and outside so compile_commands.json works on the host
       - /dev:/dev                 # host devices, including boards plugged in after start
     device_cgroup_rules:          # allow the container to actually open those device nodes
       - "c 166:* rmw"             # ttyACM (USB CDC, e.g. Pixhawk)
@@ -34,6 +36,6 @@ services:
       - seccomp=unconfined
     environment:
       HOME: /tmp                  # the host uid has no home directory in the image
-      CCACHE_DIR: /src/PX4-Autopilot/build/.ccache           # keep the compiler cache between runs
+      CCACHE_DIR: ${PWD}/build/.ccache   # keep the compiler cache between runs (gitignored)
     stdin_open: true
     tty: true
