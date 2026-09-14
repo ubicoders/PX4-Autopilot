@@ -154,6 +154,10 @@ void MixingOutput::updateParams()
 {
 	ModuleParams::updateParams();
 
+#if defined(CONFIG_MODULES_UBICODERS)
+	_ubi_mixer.updateParams();
+#endif
+
 	bool function_changed = false;
 
 	for (unsigned i = 0; i < _max_num_outputs; i++) {
@@ -522,6 +526,22 @@ MixingOutput::limitAndUpdateOutputs(float outputs[MAX_ACTUATORS], bool has_updat
 			}
 		}
 	}
+
+#if defined(CONFIG_MODULES_UBICODERS)
+
+	// ubicoders example: optionally drive the first outputs straight from the ubicoders_msg_act_out topic.
+	// Lockdown, kill and termination keep the values assigned above.
+	if (_ubi_mixer.enabled() && !_armed.lockdown && !_armed.kill && !_armed.termination) {
+		_ubi_mixer.update();
+
+		const unsigned n = math::min(UbicodersMixer::NUM_OVERRIDE_OUTPUTS, (unsigned)_max_num_outputs);
+
+		for (unsigned i = 0; i < n; i++) {
+			_current_output_value[i] = _armed.armed ? _ubi_mixer.output(i) : _disarmed_value[i];
+		}
+	}
+
+#endif // CONFIG_MODULES_UBICODERS
 
 	/* now return the outputs to the driver */
 	if (_interface.updateOutputs(_current_output_value, _max_num_outputs, has_updates)) {

@@ -91,6 +91,41 @@ public:
 	virtual void mixerChanged() {}
 };
 
+#if defined(CONFIG_MODULES_UBICODERS)
+#include <uORB/Subscription.hpp>
+#include <uORB/topics/ubicoders_msg_act_out.h>
+
+/**
+ * @class UbicodersMixer
+ * Ubicoders example: lets the ubicoders module drive the first NUM_OVERRIDE_OUTPUTS outputs of an
+ * output driver directly through the ubicoders_msg_act_out topic (pin0..pin3, PWM microseconds).
+ * Enabled at runtime with the UBI_ACT_OVERRIDE parameter; MixingOutput still applies the disarmed,
+ * lockdown, kill and termination handling.
+ */
+class UbicodersMixer
+{
+public:
+	static constexpr unsigned NUM_OVERRIDE_OUTPUTS = 4;
+
+	/** (Re-)read UBI_ACT_OVERRIDE. Called from MixingOutput::updateParams(). */
+	void updateParams();
+
+	bool enabled() const { return _enabled; }
+
+	/** Poll ubicoders_msg_act_out and refresh the override values. */
+	void update();
+
+	uint16_t output(unsigned i) const { return _servo_output[i]; }
+
+private:
+	uORB::Subscription _act_out_sub{ORB_ID(ubicoders_msg_act_out)};
+	ubicoders_msg_act_out_s _act_out{};
+	uint16_t _servo_output[NUM_OVERRIDE_OUTPUTS] {900, 900, 900, 900};
+	param_t _param_override{PARAM_INVALID};
+	bool _enabled{false};
+};
+#endif // CONFIG_MODULES_UBICODERS
+
 /**
  * @class MixingOutput
  * This handles the mixing, arming/disarming and all subscriptions required for that.
@@ -263,6 +298,10 @@ private:
 	uORB::PublicationMulti<actuator_outputs_s> _outputs_pub{ORB_ID(actuator_outputs)};
 
 	actuator_armed_s _armed{};
+
+#if defined(CONFIG_MODULES_UBICODERS)
+	UbicodersMixer _ubi_mixer; ///< ubicoders example actuator override
+#endif
 
 	unsigned _max_topic_update_interval_us{0}; ///< max topic update interval (0=unlimited)
 
