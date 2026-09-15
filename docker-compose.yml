@@ -5,7 +5,13 @@ services:
       dockerfile: Dockerfile
     image: px4-autopilot-dev:v1.17.0
     container_name: px4-autopilot
-    working_dir: /workspace/PX4-Autopilot
+    # The tree is mounted at the SAME absolute path it has on the host
+    # (${PWD}, expanded by compose from the shell you run it in). Absolute
+    # paths the build writes -- compile_commands.json, the NuttX include
+    # symlinks -- are therefore valid on the host too, so host-side
+    # IntelliSense works with no path rewriting. Always run compose from the
+    # repo root.
+    working_dir: ${PWD}
 
     # Full device access — required to reach host serial/USB devices under
     # /dev for flashing boards, HITL, etc.
@@ -25,12 +31,13 @@ services:
       # Host devices (serial ports, USB) for flashing & hardware-in-the-loop.
       - /dev/:/dev/
 
-      # The entire PX4-Autopilot tree, mounted live (read/write).
-      - ./:/workspace/PX4-Autopilot:rw
+      # The entire PX4-Autopilot tree, mounted live (read/write) at the
+      # host path. Docker creates the mount point inside the container.
+      - ./:${PWD}:rw
 
       # ...except the docker-related files: overlay the host's /dev/null on
       # each so they appear empty inside the container and the live source
       # mount above is not polluted by container-only tooling.
-      - /dev/null:/workspace/PX4-Autopilot/Dockerfile:ro
-      - /dev/null:/workspace/PX4-Autopilot/docker-compose.yml:ro
-      - /dev/null:/workspace/PX4-Autopilot/.dockerignore:ro
+      - /dev/null:${PWD}/Dockerfile:ro
+      - /dev/null:${PWD}/docker-compose.yml:ro
+      - /dev/null:${PWD}/.dockerignore:ro

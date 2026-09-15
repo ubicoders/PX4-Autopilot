@@ -1,3 +1,22 @@
+# Build (docker compose)
+
+Target names follow `px4_<board>_<config>`. There is no `v6xc` target; the v6 boards in this
+tree are `fmu-v6c` (Pixhawk 6C), `fmu-v6u`, `fmu-v6x` (Pixhawk 6X) and `fmu-v6xrt` (Pixhawk 6X-RT).
+The project boards are FMUv5 (`px4_fmu-v5_default`) and FMUv6X (`px4_fmu-v6x_default`).
+
+```bash
+# Run from the repo root (the container mounts the tree at this same host path).
+docker compose run --rm px4 make px4_fmu-v6x_default          # -> build/px4_fmu-v6x_default/px4_fmu-v6x_default.px4
+docker compose run --rm px4 make px4_fmu-v6x_default upload   # build and flash over USB
+docker compose run --rm px4 make px4_fmu-v5_default
+docker compose run --rm px4 make list_config_targets          # every valid target name
+```
+
+IntelliSense on the host: install `ms-vscode.cpptools` and `gcc-arm-none-eabi`, build once, reload
+VS Code. The compile database uses host paths because the container mounts the tree at `${PWD}`.
+Details and gotchas are in [CLAUDE.md](CLAUDE.md).
+--------------
+
 # PX4 parameter setup — IPS → PX4 offboard control
 
 This fork (`ubicoders/PX4-Autopilot`, `ubicoders_v1.17.0`, FMUv5) is used **params-only**

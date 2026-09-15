@@ -10,5 +10,6 @@ FROM px4io/px4-dev:v1.17.0
 # operate on it regardless of ownership (applies to every user in the image).
 RUN git config --system --add safe.directory '*'
 
-# Where docker-compose.yml bind-mounts the PX4-Autopilot source tree.
-WORKDIR /workspace/PX4-Autopilot
+# No WORKDIR: docker-compose.yml mounts the source tree at its host path
+# (${PWD}) and sets working_dir to match, so the container sees the same
+# absolute paths as the host.
