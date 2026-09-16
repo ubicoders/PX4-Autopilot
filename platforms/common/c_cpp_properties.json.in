@@ -7,7 +7,8 @@
             ],
             "defines": [],
             "macFrameworkPath": [],
-            "configurationProvider": "ms-vscode.cmake-tools",
+            "compileCommands": "@PX4_BINARY_DIR@/compile_commands.json",
+            "compilerPath": "@CMAKE_CXX_COMPILER@",
             "cppStandard": "c++14",
             "cStandard": "c11",
             "forcedInclude": [

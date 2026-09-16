@@ -1,41 +1,43 @@
-# PX4 development container for this branch, built from Tools/setup/Dockerfile.
-#
-#   docker compose build                                  # build the image once (ubuntu 24.04 + PX4 toolchain)
-#   docker compose run --rm px4                           # interactive shell inside the container
-#   docker compose run --rm px4 make px4_sitl             # build SITL
-#   docker compose run --rm px4 make px4_fmu-v6x_default upload   # build firmware and flash over USB
-#
-# Run these from the repo root. The repo is mounted at the SAME absolute path inside the container and the
-# container runs as your host UID/GID, so build/ output (including compile_commands.json) is directly usable
-# by VS Code on the host: .vscode/settings.json points IntelliSense at build/px4_sitl_default/compile_commands.json.
-# If your ids are not 1000:1000, run:  UID=$(id -u) GID=$(id -g) docker compose run --rm px4
-
 services:
   px4:
     build:
-      context: Tools/setup        # the Dockerfile COPYs ubuntu.sh and requirements.txt from here
+      context: .
       dockerfile: Dockerfile
-    image: px4-dev:ubicoders-v1.17.0
-    user: "${UID:-1000}:${GID:-1000}"
-    group_add:
-      - "20"                      # dialout: /dev/ttyACM*, /dev/ttyUSB* (flight controller serial)
-      - "46"                      # plugdev: raw USB (dfu-util, bootloader)
+    image: px4-autopilot-dev:v1.17.0
+    container_name: px4-autopilot
+    # The tree is mounted at the SAME absolute path it has on the host
+    # (${PWD}, expanded by compose from the shell you run it in). Absolute
+    # paths the build writes -- compile_commands.json, the NuttX include
+    # symlinks -- are therefore valid on the host too, so host-side
+    # IntelliSense works with no path rewriting. Always run compose from the
+    # repo root.
     working_dir: ${PWD}
-    volumes:
-      - ${PWD}:${PWD}           # same path inside and outside so compile_commands.json works on the host
-      - /dev:/dev                 # host devices, including boards plugged in after start
-    device_cgroup_rules:          # allow the container to actually open those device nodes
-      - "c 166:* rmw"             # ttyACM (USB CDC, e.g. Pixhawk)
-      - "c 188:* rmw"             # ttyUSB (FTDI / CP210x adapters)
-      - "c 189:* rmw"             # raw USB bus
-    # privileged: true            # fallback if a device is still blocked
-    network_mode: host            # SITL MAVLink and DDS reach QGC / ROS 2 on the host directly
-    cap_add:
-      - SYS_PTRACE                # gdb inside the container
-    security_opt:
-      - seccomp=unconfined
-    environment:
-      HOME: /tmp                  # the host uid has no home directory in the image
-      CCACHE_DIR: ${PWD}/build/.ccache   # keep the compiler cache between runs (gitignored)
-    stdin_open: true
+
+    # Full device access — required to reach host serial/USB devices under
+    # /dev for flashing boards, HITL, etc.
+    privileged: true
+
+    # Keep an interactive shell available: `docker compose run px4 bash`
+    # or `docker compose up -d` then `docker compose exec px4 bash`.
     tty: true
+    stdin_open: true
+
+    # SITL / MAVLink UDP ports exposed by the base image.
+    ports:
+      - "14556:14556/udp"
+      - "14557:14557/udp"
+
+    volumes:
+      # Host devices (serial ports, USB) for flashing & hardware-in-the-loop.
+      - /dev/:/dev/
+
+      # The entire PX4-Autopilot tree, mounted live (read/write) at the
+      # host path. Docker creates the mount point inside the container.
+      - ./:${PWD}:rw
+
+      # ...except the docker-related files: overlay the host's /dev/null on
+      # each so they appear empty inside the container and the live source
+      # mount above is not polluted by container-only tooling.
+      - /dev/null:${PWD}/Dockerfile:ro
+      - /dev/null:${PWD}/docker-compose.yml:ro
+      - /dev/null:${PWD}/.dockerignore:ro

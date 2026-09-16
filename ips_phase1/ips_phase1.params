@@ -1,0 +1,39 @@
+# Onboard parameters for IPS Phase 1 (EKF2 external-vision + offboard)
+#
+# Target: PX4 v1.17.0 (ubicoders fork), FMUv5 (px4_fmu-v5_default)
+# Params-only config: route the host IPS into EKF2 as the external-vision (EV)
+# aiding source and disable GNSS for indoor flight. NO firmware source changes.
+#
+# Apply with QGroundControl: Vehicle Setup -> Parameters -> Tools ->
+#   "Load from file" -> select this file -> write -> REBOOT the vehicle.
+# (Or via nsh `param set` / `param save` / `reboot`; see apply_params.md.)
+#
+# Type codes (QGC .params format): INT32 = 6, FLOAT = 9.
+# QGC ignores lines beginning with '#'; only the tab-separated rows are imported.
+#
+# Vehicle-Id Component-Id Name Value Type
+#
+# --- External-vision (EV) aiding: feed IPS pos+vel into EKF2 ---
+# EKF2_EV_CTRL bitmask: bit0 horiz pos + bit1 vert pos + bit2 3D vel = 1+2+4 = 7.
+# Yaw bit (bit3=8) intentionally OFF: IPS attitude unused, slow yaw drift accepted.
+1	1	EKF2_EV_CTRL	7	6
+# EKF2_HGT_REF enum: 0=Baro 1=GPS 2=Range 3=Vision. Use 3 (Vision) so the IPS
+# vertical position is the primary height. Switch to 2 (Range) ONLY if a
+# rangefinder over a flat floor is added. reboot_required.
+1	1	EKF2_HGT_REF	3	6
+# EKF2_EV_NOISE_MD: 0=use variance from message (param as lower bound), 1=use
+# params directly. IPS ODOMETRY carries no covariance -> set 1 (param noise).
+1	1	EKF2_EV_NOISE_MD	1	6
+# EKF2_EVP_NOISE: EV position measurement noise. yaml default 0.1 m.
+# TUNE on the bench against the observed IPS position jitter.
+1	1	EKF2_EVP_NOISE	0.1	9
+# EKF2_EVV_NOISE: EV velocity measurement noise. yaml default 0.1 m/s.
+# TUNE on the bench against the observed IPS velocity jitter.
+1	1	EKF2_EVV_NOISE	0.1	9
+# EKF2_EV_DELAY: IPS->autopilot latency (ms). yaml default 0.0 ms.
+# MEASURE on the bench (round-trip / timestamp offset) and set the real value.
+# reboot_required.
+1	1	EKF2_EV_DELAY	0.0	9
+# --- Disable GNSS for indoor flight ---
+# EKF2_GPS_CTRL bitmask (default 7). Set 0 to disable all GNSS aiding indoors.
+1	1	EKF2_GPS_CTRL	0	6
