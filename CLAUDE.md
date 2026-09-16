@@ -130,6 +130,8 @@ No firmware source is changed. The branch adds tooling and documentation only:
 | [README.md](README.md) | Build quick reference, then the **flight-mode switch** (RC ch7 toggles Stabilized and Offboard) and the **offboard parameters** (`COM_*`) for the IPS integration, with a copy-paste nsh block. |
 | [ips_phase1/ips_phase1.params](ips_phase1/ips_phase1.params) | QGC-loadable EKF2 params: `EKF2_EV_CTRL=7` (EV pos+vel), `EKF2_HGT_REF=3` (vision height), `EKF2_EV_NOISE_MD=1`, EV noise and delay to tune, `EKF2_GPS_CTRL=0` (indoor). |
 | [ips_phase1/apply_params.md](ips_phase1/apply_params.md) | How to apply the params (QGC or nsh), which need a reboot, and how to verify EV fusion. |
+| [hflow/hflow.params](hflow/hflow.params), [hflow/README.md](hflow/README.md) | Holybro H-Flow (DroneCAN flow + rangefinder): `UAVCAN_ENABLE=2`, `UAVCAN_SUB_FLOW/RNG=1`, EKF2 flow+range fusion with `EKF2_HGT_REF=2`, plus apply and verify steps. |
+| [notes/hflow_dataflow.md](notes/hflow_dataflow.md) | Mermaid diagram of the H-Flow build: uavcan → sensors → ekf2 → flight_mode_manager / mc_pos_control → mc_att_control → mc_rate_control → control_allocator, plus how `mc_pos_control` closes P-position / PID-velocity on `vehicle_local_position` and the uORB names. |
 | [commander.md](commander.md) | Architecture notes on the `commander` module: its collaborators, uORB I/O, `UserModeIntention`, and the `run()` loop. |
 | [offboard.md](offboard.md) | How `commander` enters and holds OFFBOARD: the RC request path and the `offboard_control_mode` heartbeat gate, with a line-number index. |
 | [odom.md](odom.md) | The ODOMETRY data path from the companion into EKF2 and back out: inbound state, setpoint, control cascade, readback stream. |

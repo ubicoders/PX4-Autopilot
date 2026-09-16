@@ -1,0 +1,54 @@
+# Onboard parameters for Holybro H-Flow (DroneCAN optical flow + rangefinder)
+#
+# Target: PX4 v1.17.0 (ubicoders fork), FMUv5 (px4_fmu-v5_default) or FMUv6X.
+# Params-only: enables the DroneCAN driver, subscribes to the flow and range
+# messages, and makes EKF2 fuse them for indoor (no-GNSS) velocity/position.
+# NO firmware source changes.
+#
+# Apply with QGroundControl: Vehicle Setup -> Parameters -> Tools ->
+#   "Load from file" -> select this file -> write -> REBOOT the vehicle.
+# (Or paste the nsh block from README.md into Analyze Tools -> MAVLink Console.)
+#
+# Type codes (QGC .params format): INT32 = 6, FLOAT = 9.
+# QGC ignores lines beginning with '#'; only the tab-separated rows are imported.
+#
+# Vehicle-Id Component-Id Name Value Type
+#
+# --- DroneCAN driver + subscriptions (all reboot_required) ---
+# UAVCAN_ENABLE: 0=off 1=sensors manual 2=sensors auto node-ID 3=sensors+ESCs.
+1	1	UAVCAN_ENABLE	2	6
+# Subscribe to com.hex.equipment.flow.Measurement (default 0 = off).
+1	1	UAVCAN_SUB_FLOW	1	6
+# Subscribe to uavcan.equipment.range_sensor.Measurement (default 0 = off).
+1	1	UAVCAN_SUB_RNG	1	6
+# Range limits stamped on distance_sensor (defaults 0 / 999 m). AFBR-S50LV85D ~30 m.
+1	1	UAVCAN_RNG_MIN	0.08	9
+1	1	UAVCAN_RNG_MAX	30	9
+#
+# --- EKF2: fuse flow + range, no GNSS ---
+# EKF2_OF_CTRL: 1 = optical flow aiding on (default already 1; set explicitly).
+1	1	EKF2_OF_CTRL	1	6
+# EKF2_RNG_CTRL: 0=off 1=conditional (low speed/altitude) 2=always. Default 1.
+1	1	EKF2_RNG_CTRL	1	6
+# EKF2_HGT_REF: 0=Baro 1=GPS 2=Range 3=Vision. Range for a flow-only indoor test.
+# NOTE: overrides ips_phase1.params (which sets 3 = Vision). reboot_required.
+1	1	EKF2_HGT_REF	2	6
+# EKF2_GPS_CTRL bitmask (default 7). 0 = no GNSS aiding indoors.
+1	1	EKF2_GPS_CTRL	0	6
+# EKF2_RNG_A_HMAX: max height for conditional range aid (default 5 m).
+1	1	EKF2_RNG_A_HMAX	10	9
+# EKF2_RNG_QLTY_T: seconds of valid range before it is trusted (default 1.0).
+1	1	EKF2_RNG_QLTY_T	0.2	9
+#
+# --- Sensor-level flow limits (sensors module) ---
+# SENS_FLOW_ROT: 0 = sensor X axis along vehicle X. 2 = yaw 90, 4 = yaw 180, 6 = yaw 270.
+# Check with the movement table in docs/en/sensor/optical_flow.md (forward = +Y).
+1	1	SENS_FLOW_ROT	0	6
+# SENS_FLOW_MINHGT / MAXHGT: height window in which flow is fused (defaults 0.08 / 100 m).
+1	1	SENS_FLOW_MINHGT	0.08	9
+1	1	SENS_FLOW_MAXHGT	25	9
+# SENS_FLOW_MAXR: max reliable angular flow rate, rad/s (default 8). 7.4 per ARK Flow docs.
+1	1	SENS_FLOW_MAXR	7.4	9
+#
+# Optional, flight only: if flow is the sole horizontal source and position mode
+# oscillates, lower MPC_XY_P (default 0.95) to ~0.5. Not set here.
