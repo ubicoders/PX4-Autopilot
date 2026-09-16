@@ -73,7 +73,7 @@ bench, hold the vehicle 20–50 cm over a patterned surface and slide it sideway
   flow. This file sets `2` (Range) for the flow-only test; reload
   `ips_phase1.params` (or set `EKF2_HGT_REF 3`) before going back to EV fusion.
 - `SENS_FLOW_ROT` depends on how the module is mounted. Verify with the
-  movement table in [docs/en/sensor/optical_flow.md](../docs/en/sensor/optical_flow.md)
+  movement table in [docs/en/sensor/optical_flow.md](../../docs/en/sensor/optical_flow.md)
   (forward → +Y, right → −X).
 - Values follow the ARK Flow / ARK Flow MR setup pages in `docs/en/dronecan/`,
   which use the same DroneCAN messages and the same flow/range chips.

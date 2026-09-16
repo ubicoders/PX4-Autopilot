@@ -1,6 +1,6 @@
 # hflow_dataflow.md — H-Flow build: module/topic diagram and the position controller
 
-What runs in `px4_fmu-v5_default` with [`hflow/hflow.params`](../hflow/hflow.params)
+What runs in `px4_fmu-v5_default` with [`hflow.params`](hflow.params)
 applied, how the modules are wired through uORB, and what `mc_pos_control` does
 with the estimate. Every module and topic name is taken from the v1.17 source in
 this tree (paths cited inline).
@@ -188,7 +188,7 @@ noisier and drifts.
 
 Position mode will refuse to arm or will drop to Altitude mode if
 `vehicle_local_position.xy_valid` / `v_xy_valid` are false, which is what the
-"flow fusion started" check in [`../hflow/README.md`](../hflow/README.md) is for.
+"flow fusion started" check in [`README.md`](README.md) is for.
 
 ---
 
