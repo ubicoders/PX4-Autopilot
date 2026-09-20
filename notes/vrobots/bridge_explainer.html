@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>vRobots PX4 Bridge</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+:root{
+  --ground:#EDF2F6; --panel:#FFFFFF; --ink:#14263B; --soft:#51647A; --line:#C9D5E0;
+  --sim:#6B4FD8; --sim-bg:#EEEAFD;
+  --mav:#D4601C; --mav-bg:#FDEEE3;
+  --ros:#0B7F73; --ros-bg:#E0F4F1;
+  --fc:#14263B; --fc-bg:#E3EAF1;
+  --no:#B3261E; --yes:#0B7F73;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0E1822; --panel:#16232F; --ink:#E7EEF5; --soft:#9DB0C3; --line:#2B3C4D;
+    --sim:#A995FF; --sim-bg:#241F45;
+    --mav:#FF9A5C; --mav-bg:#3A2415;
+    --ros:#4FD1C2; --ros-bg:#12332F;
+    --fc:#E7EEF5; --fc-bg:#22313F;
+    --no:#FF8A80; --yes:#4FD1C2;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0E1822; --panel:#16232F; --ink:#E7EEF5; --soft:#9DB0C3; --line:#2B3C4D;
+  --sim:#A995FF; --sim-bg:#241F45;
+  --mav:#FF9A5C; --mav-bg:#3A2415;
+  --ros:#4FD1C2; --ros-bg:#12332F;
+  --fc:#E7EEF5; --fc-bg:#22313F;
+  --no:#FF8A80; --yes:#4FD1C2;
+}
+*{box-sizing:border-box}
+body{
+  background:var(--ground); color:var(--ink);
+  font-family:"Atkinson Hyperlegible",system-ui,sans-serif; font-size:18px; line-height:1.55;
+  padding-inline:20px; padding-block:40px 72px;
+}
+.page{max-width:1100px;margin-inline:auto;display:flex;flex-direction:column;gap:64px}
+h1,h2,h3{font-family:"Bricolage Grotesque",system-ui,sans-serif;text-wrap:balance;margin:0;line-height:1.08}
+h1{font-size:clamp(2.2rem,6.4vw,4rem);font-weight:700;letter-spacing:-0.02em}
+h2{font-size:clamp(1.6rem,4.2vw,2.5rem);font-weight:700;letter-spacing:-0.01em}
+p{margin:0;max-width:64ch}
+code{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:.86em}
+.lede{font-size:1.22rem;color:var(--soft)}
+.tag{
+  font-family:"JetBrains Mono",ui-monospace,monospace;font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;
+  display:inline-block;padding:4px 10px;border-radius:4px;align-self:flex-start;
+}
+.tag.mav{background:var(--mav-bg);color:var(--mav)}
+.tag.ros{background:var(--ros-bg);color:var(--ros)}
+.tag.both{background:var(--fc-bg);color:var(--fc)}
+section,header{display:flex;flex-direction:column;gap:20px}
+
+/* diagram */
+.stage{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:26px 20px}
+.dia{display:flex;align-items:stretch;gap:12px}
+.machine{
+  display:flex;align-items:stretch;gap:12px;flex:1 1 auto;
+  border:2px solid var(--line);border-radius:12px;padding:34px 12px 12px;position:relative;
+}
+.machine.narrow{flex:0 0 auto}
+.machine.stack{flex-direction:column;gap:10px;flex:0 0 230px}
+.machine > .where{
+  position:absolute;top:8px;left:12px;
+  font-family:"JetBrains Mono",monospace;font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--soft);
+}
+.node{
+  flex:0 0 132px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
+  text-align:center;padding:14px 8px;border-radius:10px;border:2px solid var(--c);background:var(--bg);color:var(--c);
+}
+.node svg{width:48px;height:48px}
+.node b{font-family:"Bricolage Grotesque",sans-serif;font-size:1.05rem;line-height:1.12;color:var(--ink);overflow-wrap:anywhere}
+.node small{font-size:.82rem;line-height:1.25;color:var(--soft)}
+.node.sim{--c:var(--sim);--bg:var(--sim-bg)}
+.node.fc{--c:var(--fc);--bg:var(--fc-bg)}
+.node.brg{--c:var(--ink);--bg:var(--panel);border-style:dashed}
+.node.mavn{--c:var(--mav);--bg:var(--mav-bg)}
+.node.rosn{--c:var(--ros);--bg:var(--ros-bg)}
+.node.mini{flex:0 0 auto;padding:9px 10px;flex-direction:row;gap:10px;text-align:left;justify-content:flex-start}
+.node.mini svg{width:28px;height:28px;flex:none}
+.node.mini b{font-size:.95rem}
+.node.mini div{display:flex;flex-direction:column;gap:1px}
+
+.group{
+  flex:0 0 214px;display:flex;flex-direction:column;gap:8px;padding:10px;border-radius:12px;
+  border:2px dashed var(--ros);
+}
+.group > span{font-family:"JetBrains Mono",monospace;font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ros)}
+
+.link{flex:1 1 0;min-width:88px;display:flex;flex-direction:column;justify-content:center;gap:16px;--c:var(--soft)}
+.link.mav,.lane.mav{--c:var(--mav)} .link.ros,.lane.ros{--c:var(--ros)} .link.sim{--c:var(--sim)}
+.lane{display:flex;flex-direction:column;gap:5px;color:var(--c)}
+.lbl{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:.72rem;text-align:center;line-height:1.2}
+.wire{
+  position:relative;height:3px;margin-inline:2px 10px;
+  background-image:repeating-linear-gradient(90deg,var(--c) 0 8px,transparent 8px 16px);
+  background-size:16px 100%;animation:flow .7s linear infinite;
+}
+.wire::after{content:"";position:absolute;right:-10px;top:-5.5px;border:7px solid transparent;border-left:10px solid var(--c);border-right:0}
+.lane.back .wire{margin-inline:10px 2px;animation-direction:reverse}
+.lane.back .wire::after{right:auto;left:-10px;border-left:0;border-right:10px solid var(--c)}
+.lane.bi .wire{margin-inline:10px;animation:none;background:var(--c)}
+.lane.bi .wire::before{content:"";position:absolute;left:-10px;top:-5.5px;border:7px solid transparent;border-right:10px solid var(--c);border-left:0}
+@keyframes flow{to{background-position-x:16px}}
+@media (prefers-reduced-motion: reduce){.wire{animation:none}}
+
+.fork{flex:2.4 1 0;display:flex;flex-direction:column;gap:14px;justify-content:center}
+.branch{display:flex;gap:12px;align-items:stretch}
+.branch .node{flex-basis:124px;padding:10px 8px}
+
+.cap{font-size:1.05rem}
+.note{border-left:4px solid var(--c);padding:4px 0 4px 16px;color:var(--soft);font-size:1rem}
+.note.mav{--c:var(--mav)} .note.ros{--c:var(--ros)}
+
+/* answers */
+.qa{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:18px}
+.q{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:8px}
+.q h3{font-size:1.1rem;font-weight:500;color:var(--soft)}
+.q .a{font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:2.2rem;line-height:1}
+.q .a.no{color:var(--no)} .q .a.yes{color:var(--yes)} .q .a.mid{color:var(--mav)}
+.q p{font-size:.98rem}
+
+/* compare */
+.cmp{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:20px}
+.col{background:var(--panel);border:1px solid var(--line);border-top:6px solid var(--c);border-radius:4px 4px 12px 12px;padding:20px;display:flex;flex-direction:column;gap:14px}
+.col.mav{--c:var(--mav)} .col.ros{--c:var(--ros)}
+.col h3{font-size:1.4rem}
+.col dl{margin:0;display:grid;grid-template-columns:7.5em 1fr;gap:10px 12px;font-size:.98rem}
+.col dt{font-family:"JetBrains Mono",monospace;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--c);padding-top:4px}
+.col dd{margin:0}
+
+.names{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.98rem;min-width:560px}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-family:"JetBrains Mono",monospace;font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--soft);font-weight:500}
+td:first-child{white-space:nowrap}
+
+@media (max-width:940px){
+  .dia,.branch,.machine{flex-direction:column}
+  .node,.group,.branch .node,.machine.stack{flex-basis:auto}
+  .fork{flex-basis:auto}
+  .link{flex-direction:row;flex-wrap:wrap;justify-content:center;gap:6px 18px;min-height:0;padding-block:2px}
+  .wire{display:none}
+  .lane .lbl::before{content:"\2193  "}
+  .lane.back .lbl::before{content:"\2191  "}
+  .lane.bi .lbl::before{content:"\2195  "}
+  .lbl{font-size:.8rem}
+  td:first-child{white-space:normal}
+}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-sim" viewBox="0 0 54 54"><rect x="5" y="9" width="44" height="30" rx="4" fill="none" stroke="currentColor" stroke-width="3"/><path d="M20 46h14M27 39v7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M17 20h8M29 20h8M21 20l4 5h4l4-5" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><rect x="24" y="25" width="6" height="5" rx="1" fill="currentColor"/></symbol>
+    <symbol id="i-brg" viewBox="0 0 54 54"><path d="M6 10h26a3 3 0 0 1 3 3v13a3 3 0 0 1-3 3H17l-7 6v-6H6a3 3 0 0 1-3-3V13a3 3 0 0 1 3-3z" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><path d="M40 22h8a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3h-3v6l-7-6H27a3 3 0 0 1-3-3v-3" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/></symbol>
+    <symbol id="i-fc" viewBox="0 0 54 54"><rect x="13" y="13" width="28" height="28" rx="4" fill="none" stroke="currentColor" stroke-width="3"/><rect x="21" y="21" width="12" height="12" rx="2" fill="currentColor"/><path d="M20 5v8M27 5v8M34 5v8M20 41v8M27 41v8M34 41v8M5 20h8M5 27h8M5 34h8M41 20h8M41 27h8M41 34h8" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></symbol>
+    <symbol id="i-agent" viewBox="0 0 54 54"><path d="M8 18h30M38 18l-7-7M38 18l-7 7" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M46 36H16M16 36l7-7M16 36l7 7" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-app" viewBox="0 0 54 54"><rect x="6" y="9" width="42" height="36" rx="4" fill="none" stroke="currentColor" stroke-width="3"/><path d="M6 19h42" fill="none" stroke="currentColor" stroke-width="3"/><path d="M17 28l-5 5 5 5M37 28l5 5-5 5M30 26l-6 14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 54 54"><path d="M4 27s9-14 23-14 23 14 23 14-9 14-23 14S4 27 4 27z" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><circle cx="27" cy="27" r="6" fill="currentColor"/></symbol>
+  </defs>
+</svg>
+
+<div class="page">
+
+<header>
+  <h1>What runs where, and who talks to whom</h1>
+  <p class="lede">There are two computers. The PC runs the simulator and every helper program. The Pixhawk runs PX4. Two cables join them, and each cable carries a different protocol.</p>
+  <div class="stage">
+    <div class="dia">
+      <div class="machine stack">
+        <span class="where">On the PC</span>
+        <div class="node sim mini"><svg><use href="#i-sim"/></svg><div><b>vRobots simulator</b><small>Unity, zenoh + iceoryx2</small></div></div>
+        <div class="node brg mini"><svg><use href="#i-brg"/></svg><div><b>Rust bridge</b><small>the program to be written</small></div></div>
+        <div class="node rosn mini"><svg><use href="#i-agent"/></svg><div><b>MicroXRCEAgent</b><small>stock eProsima program</small></div></div>
+        <div class="node rosn mini"><svg><use href="#i-app"/></svg><div><b>ROS 2 nodes</b><small>offboard app, rviz2</small></div></div>
+      </div>
+      <div class="link">
+        <div class="lane bi mav"><span class="lbl">MAVLink, USB cable</span><span class="wire"></span></div>
+        <div class="lane bi ros"><span class="lbl">XRCE-DDS, TELEM2 or Ethernet</span><span class="wire"></span></div>
+      </div>
+      <div class="machine stack">
+        <span class="where">On the Pixhawk (PX4)</span>
+        <div class="node mavn mini"><svg><use href="#i-fc"/></svg><div><b>mavlink module</b><small>speaks MAVLink</small></div></div>
+        <div class="node rosn mini"><svg><use href="#i-fc"/></svg><div><b>uxrce_dds_client</b><small>speaks XRCE-DDS</small></div></div>
+        <div class="node fc mini"><svg><use href="#i-fc"/></svg><div><b>ekf2 + controllers</b><small>the actual autopilot</small></div></div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<section>
+  <h2>Why ROS 2 cannot talk to the Pixhawk directly</h2>
+  <p class="cap">ROS 2 nodes speak <strong>DDS</strong>. Full DDS is too large for a microcontroller, so PX4 speaks <strong>XRCE-DDS</strong>, a lightweight version made for small chips. XRCE-DDS is a client protocol: by design, a client can only talk to an <strong>Agent</strong>, never to a ROS 2 node.</p>
+  <div class="stage">
+    <div class="dia">
+      <div class="machine narrow">
+        <span class="where">Pixhawk</span>
+        <div class="node rosn"><svg><use href="#i-fc"/></svg><b>uxrce_dds_client</b><small>the client, inside PX4</small></div>
+      </div>
+      <div class="link ros">
+        <div class="lane bi"><span class="lbl">XRCE-DDS (small, over serial or UDP)</span><span class="wire"></span></div>
+      </div>
+      <div class="machine">
+        <span class="where">PC</span>
+        <div class="node rosn"><svg><use href="#i-agent"/></svg><b>MicroXRCEAgent</b><small>converts XRCE to full DDS</small></div>
+        <div class="link ros">
+          <div class="lane bi"><span class="lbl">DDS (full size)</span><span class="wire"></span></div>
+        </div>
+        <div class="node rosn"><svg><use href="#i-app"/></svg><b>any ROS 2 node</b><small>sees <code>/fmu/in/*</code> and <code>/fmu/out/*</code></small></div>
+      </div>
+    </div>
+  </div>
+  <div class="qa">
+    <div class="q"><h3>Is the Agent inside the Pixhawk?</h3><div class="a no">No</div><p>It is a normal program on the PC or companion computer. You start it yourself: <code>MicroXRCEAgent serial --dev /dev/ttyUSB0 -b 921600</code> or <code>MicroXRCEAgent udp4 -p 8888</code>.</p></div>
+    <div class="q"><h3>Is the Agent a ROS 2 node?</h3><div class="a mid">Not quite</div><p>It is a standalone program and does not need ROS 2 installed. It creates DDS publishers and subscribers on PX4's behalf, so to ROS 2 it looks exactly like a node. <code>ros2 topic list</code> shows the <code>/fmu/...</code> topics.</p></div>
+    <div class="q"><h3>Does the bridge talk to the Agent?</h3><div class="a no">No</div><p>The bridge only publishes and subscribes to ROS 2 topics. The Agent picks those up from the DDS network and forwards them to PX4 on its own.</p></div>
+  </div>
+</section>
+
+<section>
+  <span class="tag mav">Case A</span>
+  <h2>Direct MAVLink to the Pixhawk</h2>
+  <div class="stage">
+    <div class="dia">
+      <div class="machine">
+        <span class="where">PC</span>
+        <div class="node sim"><svg><use href="#i-sim"/></svg><b>vRobots simulator</b><small>about 50 Hz</small></div>
+        <div class="link sim">
+          <div class="lane"><span class="lbl">z/state: IMU, mag, baro, GNSS</span><span class="wire"></span></div>
+          <div class="lane back"><span class="wire"></span><span class="lbl">z/cmd: SET_MR_PWM</span></div>
+        </div>
+        <div class="node brg"><svg><use href="#i-brg"/></svg><b>Rust bridge</b><small><code>vrobots_sdk</code> + <code>mavlink</code> crate</small></div>
+      </div>
+      <div class="link mav">
+        <div class="lane"><span class="lbl">HIL_SENSOR, HIL_GPS</span><span class="wire"></span></div>
+        <div class="lane back"><span class="wire"></span><span class="lbl">HIL_ACTUATOR_CONTROLS</span></div>
+      </div>
+      <div class="machine narrow">
+        <span class="where">Pixhawk, SYS_HITL=1</span>
+        <div class="node mavn"><svg><use href="#i-fc"/></svg><b>mavlink module</b><small>feeds ekf2, returns motor outputs</small></div>
+      </div>
+    </div>
+  </div>
+  <p class="cap"><strong>PX4 believes it is flying.</strong> The bridge gives it simulated sensor readings. PX4 computes four motor outputs. The bridge turns them into pulse widths and the simulated quadrotor moves.</p>
+  <p class="note mav">No Agent, no ROS 2, no firmware change. One USB cable and one program. This is the only path that can fly the simulated drone, because only MAVLink HIL accepts raw sensor data.</p>
+</section>
+
+<section>
+  <span class="tag ros">Case B</span>
+  <h2>Through ROS 2, using XRCE-DDS</h2>
+  <div class="stage">
+    <div class="dia">
+      <div class="machine">
+        <span class="where">PC</span>
+        <div class="node sim"><svg><use href="#i-sim"/></svg><b>vRobots simulator</b></div>
+        <div class="link sim">
+          <div class="lane"><span class="lbl">state, cameras</span><span class="wire"></span></div>
+          <div class="lane back"><span class="wire"></span><span class="lbl">commands</span></div>
+        </div>
+        <div class="group">
+          <span>ROS 2 nodes on the DDS network</span>
+          <div class="node brg mini"><svg><use href="#i-brg"/></svg><div><b>Rust bridge node</b><small><code>r2r</code> + <code>px4_msgs</code></small></div></div>
+          <div class="node rosn mini"><svg><use href="#i-app"/></svg><div><b>offboard node</b><small>your control app</small></div></div>
+          <div class="node rosn mini"><svg><use href="#i-eye"/></svg><div><b>rviz2, ros2 CLI</b></div></div>
+        </div>
+        <div class="link ros">
+          <div class="lane"><span class="lbl">/fmu/in/*</span><span class="wire"></span></div>
+          <div class="lane back"><span class="wire"></span><span class="lbl">/fmu/out/*</span></div>
+        </div>
+        <div class="node rosn"><svg><use href="#i-agent"/></svg><b>MicroXRCEAgent</b></div>
+      </div>
+      <div class="link ros">
+        <div class="lane bi"><span class="lbl">XRCE-DDS, TELEM2 or Ethernet</span><span class="wire"></span></div>
+      </div>
+      <div class="machine narrow">
+        <span class="where">Pixhawk</span>
+        <div class="node rosn"><svg><use href="#i-fc"/></svg><b>uxrce_dds_client</b><small>maps topics to uORB</small></div>
+      </div>
+    </div>
+  </div>
+  <p class="cap"><strong>Here the bridge is an ordinary ROS 2 node.</strong> It publishes <code>/fmu/in/vehicle_visual_odometry</code> from simulator truth, and republishes the simulator as standard topics such as <code>sensor_msgs/Imu</code> and <code>sensor_msgs/Image</code>. Your offboard node publishes <code>/fmu/in/trajectory_setpoint</code>.</p>
+  <p class="note ros">This path carries high-level data only. PX4's topic list accepts setpoints and odometry, but not raw IMU data, and it does not send motor outputs. Case B alone cannot fly the simulated drone.</p>
+</section>
+
+<section>
+  <span class="tag both">Both together</span>
+  <h2>One bridge program, two adapters</h2>
+  <div class="stage">
+    <div class="dia">
+      <div class="node sim"><svg><use href="#i-sim"/></svg><b>vRobots simulator</b></div>
+      <div class="link sim">
+        <div class="lane"><span class="lbl">state</span><span class="wire"></span></div>
+        <div class="lane back"><span class="wire"></span><span class="lbl">PWM</span></div>
+      </div>
+      <div class="node brg"><svg><use href="#i-brg"/></svg><b>Rust bridge</b><small>shared core</small></div>
+      <div class="fork">
+        <div class="branch">
+          <div class="link mav">
+            <div class="lane"><span class="lbl">HIL_SENSOR, HIL_GPS</span><span class="wire"></span></div>
+            <div class="lane back"><span class="wire"></span><span class="lbl">HIL_ACTUATOR_CONTROLS</span></div>
+          </div>
+          <div class="node mavn"><svg><use href="#i-fc"/></svg><b>mavlink module</b><small>USB</small></div>
+        </div>
+        <div class="branch">
+          <div class="link ros">
+            <div class="lane"><span class="lbl">/fmu/in/*</span><span class="wire"></span></div>
+            <div class="lane back"><span class="wire"></span><span class="lbl">/fmu/out/*</span></div>
+          </div>
+          <div class="node rosn"><svg><use href="#i-agent"/></svg><b>MicroXRCEAgent</b></div>
+          <div class="link ros">
+            <div class="lane bi"><span class="lbl">XRCE-DDS</span><span class="wire"></span></div>
+          </div>
+          <div class="node rosn"><svg><use href="#i-fc"/></svg><b>uxrce_dds_client</b><small>TELEM2</small></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="cap"><strong>Same Pixhawk, two ports.</strong> The orange path gives PX4 a simulated body: sensors in, motors out. The green path gives it a mission, using the same ROS 2 interface the real companion computer will use.</p>
+</section>
+
+<section>
+  <h2>Which sensors does EKF2 actually use?</h2>
+  <p class="cap">One parameter decides it: <strong><code>SYS_HITL</code></strong>. It is read once at boot by the startup script. The choice of MAVLink or ROS 2 does not decide it.</p>
+  <div class="cmp">
+    <div class="col ros">
+      <h3><code>SYS_HITL=0</code> (normal)</h3>
+      <dl>
+        <dt>Boot</dt><dd>The board's real sensor drivers start. <code>pwm_out</code> and <code>dshot</code> drive the real motor pins.</dd>
+        <dt>EKF2 uses</dt><dd>The real IMU, magnetometer and barometer on the Pixhawk.</dd>
+        <dt>HIL_SENSOR</dt><dd>Ignored.</dd>
+        <dt>Over DDS</dt><dd>You can add vision odometry and send setpoints. You cannot replace the IMU.</dd>
+      </dl>
+    </div>
+    <div class="col mav">
+      <h3><code>SYS_HITL=1</code> (HITL)</h3>
+      <dl>
+        <dt>Boot</dt><dd>Real sensor drivers are <strong>not started</strong>. GPS is disabled. <code>pwm_out_sim</code> replaces the real motor outputs, so the pins stay silent.</dd>
+        <dt>EKF2 uses</dt><dd>Only what arrives in <code>HIL_SENSOR</code> and <code>HIL_GPS</code>: the simulator's IMU, magnetometer, barometer and GNSS.</dd>
+        <dt>Then</dt><dd>Position, velocity, attitude and rate control run unchanged, then the control allocator.</dd>
+        <dt>Output</dt><dd>Motor values return to the PC as <code>HIL_ACTUATOR_CONTROLS</code>, at up to 200 Hz.</dd>
+      </dl>
+    </div>
+  </div>
+  <p class="note mav">"No code change" means this switch already exists in stock PX4. The work is setting <code>SYS_HITL=1</code>, selecting a quadrotor airframe, rebooting, and sending the right MAVLink messages from the bridge.</p>
+  <p class="note ros">ROS 2 over XRCE-DDS has no equivalent switch. Its topic list has no raw IMU input and no motor output, so it cannot run this loop by itself. With <code>SYS_HITL=1</code> set, it still works beside MAVLink for setpoints and vision.</p>
+</section>
+
+<section>
+  <h2>Side by side</h2>
+  <div class="cmp">
+    <div class="col mav">
+      <h3>Case A: direct MAVLink</h3>
+      <dl>
+        <dt>Job</dt><dd>Make PX4 fly the simulated drone.</dd>
+        <dt>Carries</dt><dd>Raw sensors in, motor outputs out.</dd>
+        <dt>Programs</dt><dd>Rust bridge only.</dd>
+        <dt>PX4 side</dt><dd><code>mavlink</code> module, <code>SYS_HITL=1</code>. No firmware change.</dd>
+        <dt>Build it</dt><dd>First. Nothing flies without it.</dd>
+      </dl>
+    </div>
+    <div class="col ros">
+      <h3>Case B: ROS 2 over XRCE-DDS</h3>
+      <dl>
+        <dt>Job</dt><dd>Let ROS 2 programs command PX4 and read the simulator.</dd>
+        <dt>Carries</dt><dd>Setpoints, vision odometry, status, camera images.</dd>
+        <dt>Programs</dt><dd>Rust bridge node, MicroXRCEAgent, ROS 2, <code>px4_msgs</code> matching v1.17.</dd>
+        <dt>PX4 side</dt><dd><code>uxrce_dds_client</code>, enabled with <code>UXRCE_DDS_CFG</code>. No firmware change.</dd>
+        <dt>Build it</dt><dd>Second, as an add-on to the same bridge.</dd>
+      </dl>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Names used on this page</h2>
+  <div class="names">
+    <table>
+      <thead><tr><th>Name</th><th>What it is</th><th>Runs on</th></tr></thead>
+      <tbody>
+        <tr><td><code>MAVLink</code></td><td>PX4's classic message protocol. Its HIL messages are the built-in simulator interface.</td><td>the cable</td></tr>
+        <tr><td><code>DDS</code></td><td>The network layer underneath ROS 2. Every ROS 2 topic is a DDS topic.</td><td>PC network</td></tr>
+        <tr><td><code>XRCE-DDS</code></td><td>A lightweight DDS protocol for microcontrollers. Always a client and an Agent.</td><td>the cable</td></tr>
+        <tr><td><code>uxrce_dds_client</code></td><td>The PX4 module that is the XRCE-DDS client. It maps uORB topics to <code>/fmu/*</code>.</td><td>Pixhawk</td></tr>
+        <tr><td><code>MicroXRCEAgent</code></td><td>eProsima's stock program that converts between XRCE-DDS and full DDS.</td><td>PC</td></tr>
+        <tr><td>Rust bridge</td><td>The program to be written. It reads the simulator with <code>vrobots_sdk</code> and speaks MAVLink, ROS 2, or both.</td><td>PC</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+</div>
+</body>
+</html>
