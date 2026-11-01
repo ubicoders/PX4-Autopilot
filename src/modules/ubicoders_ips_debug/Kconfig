@@ -1,0 +1,5 @@
+menuconfig MODULES_UBICODERS_IPS_DEBUG
+	bool "ubicoders_ips_debug"
+	default n
+	---help---
+		Enable support for ubicoders_ips_debug (echo of vehicle_visual_odometry as the ubicoders_ips_debug topic)

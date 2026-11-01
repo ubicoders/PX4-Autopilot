@@ -1,0 +1,184 @@
+#!/bin/sh
+#
+# ubicoders_ips: boot profile for the IPS (indoor positioning, external vision
+# from the companion computer) work of the ubicoders_v1.17.0 branch, with the
+# Holybro H-Flow (DroneCAN optical flow + rangefinder) as a second sensor.
+#
+# Sourced early in boot by one line in rcS, right after the board defaults and
+# before sensors, EKF2 and the CAN driver start, so every parameter below is
+# already in place when those modules read it. uORB is already running there,
+# so the companion link is started at the end of this script too.
+#
+# Four switches: edit them here, rebuild (make px4_fmu-v5_default), flash.
+# Two say what exists on the vehicle, two say what EKF2 may fuse.
+#
+#   IPS         0  No companion link. The USB port stays MAVLink (QGC works
+#                  over USB) and nothing IPS-related starts.
+#               1  uxrce_dds_client on USB (/dev/ttyACM0) and ubicoders_ips_debug start;
+#                  SYS_USB_AUTO is forced to 0 so MAVLink does not take the port.
+#
+#   HFLOW       0  No H-Flow: CAN driver off (UAVCAN_ENABLE 0).
+#               1  H-Flow on CAN1: driver on, publishes raw flow + range
+#                  (vehicle_optical_flow, distance_sensor).
+#
+#   FUSE_IPS    0  EKF2 ignores the IPS pose (it is still echoed by ubicoders_ips_debug).
+#               1  EKF2 fuses the IPS pose as external vision (position, height,
+#                  yaw); the IPS is the height reference.
+#
+#   FUSE_HFLOW  0  EKF2 ignores flow and range.
+#               1  EKF2 fuses optical flow and the rangefinder; the range is the
+#                  height reference unless the IPS is fused too.
+#
+# Fallback: a source that is switched off cannot be fused, so FUSE_IPS is
+# forced to 0 when IPS is 0 and FUSE_HFLOW to 0 when HFLOW is 0. The effective
+# case is echoed on the console at boot. The four combinations of the two
+# FUSE switches are the cases ubicoders_ips_debug reports as ekf2_case:
+#   0 nothing, 1 IPS only, 2 H-Flow only, 3 IPS + H-Flow.
+#
+# Yaw: with the IPS fused, yaw comes from the IPS attitude (EKF2_EV_CTRL bit3)
+# and the magnetometer is off (EKF2_MAG_TYPE 5 None): indoors, near motors and
+# steel, the field is unreliable, and two yaw sources would fight. Without
+# the IPS the magnetometer is back on its stock automatic mode.
+#
+# Lever arm: the IPS tracks the cube, not the FMU. EKF2_EV_POS_X/Y/Z is the
+# cube centre relative to the FMU in body FRD (z down, so above = negative).
+#
+# Every value is forced on each boot with `param set`, so this firmware image
+# defines the vehicle: to change a value, edit it here, rebuild and reflash.
+# `param set` also saves the value, so a value this script does not touch in
+# the current case keeps whatever an earlier image (or QGC) saved.
+# Value sources: ips_phase1/ips_phase1.params, notes/hflow/hflow.params,
+# README.md (offboard section). See notes/ubicoders_ips/README.md.
+
+set IPS 1          # 0: no companion link, USB stays MAVLink (QGC works)   1: DDS client on USB + ubicoders_ips_debug
+set HFLOW 1        # 0: CAN driver off                                     1: H-Flow on CAN1, raw flow + range
+set FUSE_IPS 1     # 0: EKF2 ignores the IPS                               1: EKF2 fuses the IPS (position, height, yaw)
+set FUSE_HFLOW 1   # 0: EKF2 ignores flow + range                          1: EKF2 fuses flow + range
+
+#
+# Fallback: no fusion of a sensor that is switched off.
+#
+if [ $IPS = 0 ]
+then
+	set FUSE_IPS 0
+fi
+
+if [ $HFLOW = 0 ]
+then
+	set FUSE_HFLOW 0
+fi
+
+echo "ubicoders_ips: IPS=${IPS} HFLOW=${HFLOW} -> fuse ips=${FUSE_IPS} hflow=${FUSE_HFLOW}"
+
+#
+# USB port: uXRCE-DDS instead of MAVLink.
+# 2 (stock default) starts MAVLink on /dev/ttyACM0 at boot. 0 leaves the port
+# to the DDS client started below. QGC over USB then no longer works; use a
+# telemetry radio on TELEM1. With IPS 0 the stock value 2 is forced back, so
+# QGC over USB works again (param set is saved, so an earlier IPS 1 image's 0
+# would otherwise stay).
+#
+if [ $IPS = 1 ]
+then
+	param set SYS_USB_AUTO 0
+else
+	param set SYS_USB_AUTO 2
+fi
+
+#
+# H-Flow on CAN1: DroneCAN flow + rangefinder (hflow.params). Driver and
+# sensor limits only; fusion is set in the FUSE_HFLOW block below.
+#
+if [ $HFLOW = 1 ]
+then
+	param set UAVCAN_ENABLE 2         # CAN sensors, automatic node id
+	param set UAVCAN_SUB_FLOW 1       # com.hex.equipment.flow.Measurement
+	param set UAVCAN_SUB_RNG 1        # uavcan.equipment.range_sensor.Measurement
+	param set UAVCAN_RNG_MIN 0.08     # [m]
+	param set UAVCAN_RNG_MAX 30       # [m]
+	param set SENS_FLOW_ROT 0         # depends on how the module is mounted
+	param set SENS_FLOW_MINHGT 0.08   # [m]
+	param set SENS_FLOW_MAXHGT 25     # [m]
+	param set SENS_FLOW_MAXR 7.4      # [rad/s]
+else
+	# No H-Flow: CAN driver off. (Set UAVCAN_ENABLE yourself if other CAN
+	# devices are on the bus.)
+	param set UAVCAN_ENABLE 0
+fi
+
+#
+# EKF2 fuses the IPS: pose as external vision (ips_phase1.params), yaw from
+# the IPS, magnetometer off, and Offboard from the companion.
+#
+if [ $FUSE_IPS = 1 ]
+then
+	param set EKF2_EV_CTRL 11         # bit0 horizontal pos, bit1 vertical pos, bit3 yaw (bit2 velocity deliberately off for now)
+	param set EKF2_HGT_REF 3          # height reference: vision (IPS)
+	param set EKF2_EV_NOISE_MD 1      # noise from the EKF2_EV*_NOISE params, not the message
+	param set EKF2_EVP_NOISE 0.05     # [m]   tune
+	param set EKF2_EVA_NOISE 0.05     # [rad] tune (0.05 is the minimum)
+	param set EKF2_EV_DELAY 5       # [ms] IPS latency before the companion stamps the pose (camera -> Jetson). NOT ips_age_us, which is only the Jetson -> PX4 hop; see notes/ubicoders_ips/BENCH.md
+	param set EKF2_GPS_CTRL 0         # indoor, no GNSS
+	param set EKF2_MAG_TYPE 5         # None: yaw from the IPS, magnetometer unused
+	param set EKF2_EV_POS_X 0.0       # [m] cube centre relative to the FMU, body FRD
+	param set EKF2_EV_POS_Y 0.0       # [m]
+	param set EKF2_EV_POS_Z -0.20     # [m] cube 20 cm above the board; measure and adjust
+
+	# Offboard from the companion, RC channel 7 switch (README.md).
+	param set RC_MAP_FLTMODE 7
+	param set COM_FLTMODE1 8          # switch LOW  -> Stabilized (pilot)
+	param set COM_FLTMODE6 7          # switch HIGH -> Offboard (companion)
+	param set COM_FLTMODE2 -1
+	param set COM_FLTMODE3 -1
+	param set COM_FLTMODE4 -1
+	param set COM_FLTMODE5 -1
+	param set COM_RC_IN_MODE 0        # RC available, drives the switch
+	param set COM_OF_LOSS_T 1.0       # [s] offboard setpoint-loss timeout
+	param set COM_OBL_RC_ACT 2        # on offboard loss -> Stabilized
+	param set COM_RCL_EXCEPT 4        # bit2: keep flying in Offboard if RC drops
+	param set COM_ARM_WO_GPS 1        # arm without GPS (indoor)
+else
+	param set EKF2_EV_CTRL 0          # no external vision
+	param set EKF2_MAG_TYPE 0         # stock default: automatic
+fi
+
+#
+# EKF2 fuses the H-Flow: flow as velocity aid, range for height
+# (hflow.params). The IPS wins the height reference when both are fused.
+#
+if [ $FUSE_HFLOW = 1 ]
+then
+	param set EKF2_OF_CTRL 1          # fuse optical flow
+	param set EKF2_RNG_CTRL 1         # fuse rangefinder (conditional)
+	param set EKF2_RNG_A_HMAX 10      # [m]
+	param set EKF2_RNG_QLTY_T 0.2     # [s]
+	param set EKF2_GPS_CTRL 0         # indoor, no GNSS
+	if [ $FUSE_IPS = 0 ]
+	then
+		param set EKF2_HGT_REF 2  # height reference: range
+	fi
+else
+	param set EKF2_OF_CTRL 0
+	param set EKF2_RNG_CTRL 0
+fi
+
+unset FUSE_IPS
+unset FUSE_HFLOW
+unset HFLOW
+
+#
+# Companion link (IPS 1 only).
+#
+# uXRCE-DDS client on the USB port; the companion runs MicroXRCEAgent there.
+# -b is required by the command but ignored on USB. The client retries every
+# second until /dev/ttyACM0 exists (USB plugged in), so boot order does not
+# matter. ubicoders_ips_debug echoes every vehicle_visual_odometry sample as ubicoders_ips_debug
+# (-> /fmu/out/ubicoders_ips_debug).
+#
+if [ $IPS = 1 ]
+then
+	uxrce_dds_client start -t serial -d /dev/ttyACM0 -b 921600
+	ubicoders_ips_debug start
+fi
+
+unset IPS

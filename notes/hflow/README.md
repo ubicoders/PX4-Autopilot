@@ -1,5 +1,12 @@
 # Holybro H-Flow on PX4 v1.17.0 — params only
 
+> **Now set by the firmware.** With `HFLOW 1` the boot profile
+> [`rc.ubicoders_ips`](../../ROMFS/px4fmu_common/init.d/rc.ubicoders_ips) sets the driver and sensor
+> parameters below, and with `FUSE_HFLOW 1` the EKF2 flow and range ones (range as
+> height reference only when the IPS is not fused). See
+> [`../ubicoders_ips/README.md`](../ubicoders_ips/README.md). The QGC and SD-card options below
+> still work for a stock build without the profile.
+
 The [H-Flow](https://holybro.com/products/h-flow) is a DroneCAN module (PAA3905
 optical flow + AFBR-S50LV85D rangefinder + IMU). The stock `px4_fmu-v5_default`
 and `px4_fmu-v6x_default` builds already contain the CAN flow and rangefinder

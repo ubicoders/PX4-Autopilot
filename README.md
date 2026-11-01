@@ -19,6 +19,13 @@ Details and gotchas are in [CLAUDE.md](CLAUDE.md).
 
 # PX4 parameter setup — IPS → PX4 offboard control
 
+> **Now set by the firmware.** The IPS work has moved to uXRCE-DDS on USB and a boot profile,
+> [`rc.ubicoders_ips`](ROMFS/px4fmu_common/init.d/rc.ubicoders_ips), which forces the parameters
+> below (and the EKF2 ones) on every boot whenever the IPS is fused; nothing has to be applied by
+> hand. See [`notes/ubicoders_ips/README.md`](notes/ubicoders_ips/README.md). The sections below
+> remain as the explanation of those values; the "params-only, no firmware source changes" wording
+> describes the earlier MAVLink path.
+
 This fork (`ubicoders/PX4-Autopilot`, `ubicoders_v1.17.0`, FMUv5) is used **params-only**
 for the IPS → PX4 integration — no firmware source changes. This README documents the
 **flight-mode switch** (RC ch7 toggles a manual/default mode ⇄ Jetson-driven offboard) and the

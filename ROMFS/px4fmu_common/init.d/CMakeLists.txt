@@ -41,6 +41,9 @@ px4_add_romfs_files(
 	rc.sensors
 	rc.vehicle_setup
 
+	# ubicoders_v1.17.0: IPS (+ optional H-Flow) profile, see rc.ubicoders_ips
+	rc.ubicoders_ips
+
 	# TODO
 	rc.balloon_apps
 	rc.balloon_defaults

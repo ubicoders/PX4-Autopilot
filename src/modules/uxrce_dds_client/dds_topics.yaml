@@ -116,6 +116,10 @@ publications:
   - topic: /fmu/out/ubicoders_msg_subs
     type: px4_msgs::msg::UbicodersMsgSubs
 
+  # ips_onboard: IPS debug: echo of the external-vision input, raw H-Flow values and the live EKF2 case
+  - topic: /fmu/out/ubicoders_ips_debug
+    type: px4_msgs::msg::UbicodersIpsDebug
+
 subscriptions:
 
   # ubicoders example

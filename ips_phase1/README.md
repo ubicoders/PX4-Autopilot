@@ -1,5 +1,11 @@
 # ips_phase1 — PX4 config for IPS → PX4 offboard control (Phase 1)
 
+> **Superseded.** This is the earlier MAVLink, params-only path, kept for reference. The current
+> build sends the IPS pose over uXRCE-DDS on USB and sets the EKF2 parameters from the boot profile
+> [`rc.ubicoders_ips`](../ROMFS/px4fmu_common/init.d/rc.ubicoders_ips) (`EKF2_EV_CTRL 11`: position,
+> height and yaw, magnetometer off, instead of `7` here). See
+> [`../notes/ubicoders_ips/README.md`](../notes/ubicoders_ips/README.md).
+
 This folder holds the **PX4-side configuration artifacts** for Phase 1 of the
 IPS → PX4 offboard integration. It is **params-only**: there are **no firmware
 source changes** and no docker build is needed — a human applies these to a real
