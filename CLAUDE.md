@@ -15,8 +15,9 @@ and EKF2 fuses it as external vision. The firmware side is small and deliberatel
 fusion case from four switches (`IPS`, `HFLOW`, `FUSE_IPS`, `FUSE_HFLOW`). **EKF2 is untouched**:
 fusion is chosen by parameters only. Keep it that way; change behaviour in the boot profile, not in `ekf2`,
 `uxrce_dds_client` or the board folders. Reference: [notes/ubicoders_ips/README.md](notes/ubicoders_ips/README.md);
-bench procedure: [notes/ubicoders_ips/BENCH.md](notes/ubicoders_ips/BENCH.md). The FMU on the drone still
-runs an older firmware until `./flash.sh` (in the companion repo) has been run.
+bench procedure: [notes/ubicoders_ips/BENCH.md](notes/ubicoders_ips/BENCH.md). The drone's FMU runs this
+fork's firmware (flashed with `./flash.sh` from the companion repo); H-Flow-only Position mode and, on 2026-11-01, Position mode
+with the IPS fused (case 3) have been flown on it.
 
 The earlier MAVLink, params-only path (`ips_phase1/`, the `README.md` offboard sections) is kept for
 reference; the boot profile now sets those parameters itself. The relevant subsystems are
