@@ -19,7 +19,17 @@ Make sure the bus is terminated (the H-Flow is usually the only node).
 3. **Reboot** (Tools → Reboot Vehicle). `UAVCAN_*` and `EKF2_HGT_REF` are
    `reboot_required`.
 
-### Option B — nsh (QGC Analyze Tools → MAVLink Console)
+### Option B — SD card boot script (no QGC needed)
+
+Copy [`config.txt`](config.txt) to the SD card as `etc/config.txt`. `rcS` sources
+it on every boot after the stored params are loaded and before `sensors`,
+`uavcan` and `ekf2` start (`ROMFS/px4fmu_common/init.d/rcS` ~line 314), so the
+reboot-required params take effect on that boot. The boot log prints
+`Custom: /fs/microsd/etc/config.txt` when it ran. The lines re-apply every
+boot and override QGC edits, so delete a line there once you want to tune that
+param from QGC.
+
+### Option C — nsh (QGC Analyze Tools → MAVLink Console)
 
 Paste as one block:
 
