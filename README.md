@@ -12,6 +12,8 @@ docker compose run --rm px4 make px4_fmu-v5_default
 docker compose run --rm px4 make list_config_targets          # every valid target name
 ```
 
+With the Holybro Pixhawk Debug Adapter and a SEGGER J-Link on the FMU's debug port, build as above and flash the ELF from the host (J-Link software installed, no bootloader or USB needed): `JLinkExe -device STM32F765II -if SWD -speed 4000 -autoconnect 1 -CommandFile <(printf 'loadfile build/px4_fmu-v5_default/px4_fmu-v5_default.elf\nr\ng\nq\n')` (fmu-v6x: `STM32H753II`, `build/px4_fmu-v6x_default/px4_fmu-v6x_default.elf`); with the J-Link tools in the container, `make px4_fmu-v5_default jlink_upload` does the same.
+
 IntelliSense on the host: install `ms-vscode.cpptools` and `gcc-arm-none-eabi`, build once, reload
 VS Code. The compile database uses host paths because the container mounts the tree at `${PWD}`.
 Details and gotchas are in [CLAUDE.md](CLAUDE.md).
